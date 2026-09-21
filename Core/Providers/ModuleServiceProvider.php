@@ -2,6 +2,7 @@
 
 namespace Core\Providers;
 
+use Core\Console\GenerateApiDocsCommand;
 use Core\Console\MakeModuleCommand;
 use Illuminate\Support\ServiceProvider;
 
@@ -10,7 +11,10 @@ class ModuleServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([MakeModuleCommand::class]);
+            $this->commands([
+                GenerateApiDocsCommand::class,
+                MakeModuleCommand::class,
+            ]);
         }
     }
 

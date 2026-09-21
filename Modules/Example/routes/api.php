@@ -1,6 +1,6 @@
 <?php
 
-use Core\Http\ApiResponse;
 use Illuminate\Support\Facades\Route;
+use Modules\Example\Http\ExampleController;
 
-Route::get('/api/example', fn () => ApiResponse::success(['module' => 'Example']))->name('api.example');
+Route::get('/api/example', ExampleController::class)->name('api.example');
