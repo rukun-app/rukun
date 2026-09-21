@@ -1,0 +1,25 @@
+services:
+  core-r-queue:
+    image: docker-php85
+    working_dir: /var/www/p85/core-r
+    volumes:
+      - ./:/var/www/p85/core-r
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --queue=high,default,low
+    restart: unless-stopped
+    networks:
+      - shared
+
+  core-r-scheduler:
+    image: docker-php85
+    working_dir: /var/www/p85/core-r
+    volumes:
+      - ./:/var/www/p85/core-r
+    command: sh -c 'while true; do php artisan schedule:run --no-interaction; sleep 60; done'
+    restart: unless-stopped
+    networks:
+      - shared
+
+networks:
+  shared:
+    external: true
+    name: docker-network

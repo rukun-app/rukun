@@ -1,58 +1,24 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Core R
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Fondasi Laravel 13 pada PHP 8.5. Saat development, aplikasi memakai layanan PostgreSQL, Redis, Nginx, MailDev, dan MinIO yang sudah ada di jaringan Docker `docker-network`.
 
-## About Laravel
+## Setup lokal
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Buat database PostgreSQL `laravel_core` dan `laravel_core_test`. Salin `.env.example` menjadi `.env` dan `.env.testing.example` menjadi `.env.testing`, lalu isi kredensial lokal dan bucket MinIO. Kedua file lokal itu diabaikan oleh Git. Jalankan Composer dan Artisan di container PHP 8.5:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```sh
+docker exec dev-php85 sh -lc 'cd /var/www/p85/core-r && composer install && php artisan key:generate && php artisan migrate'
+docker exec dev-php85 sh -lc 'cd /var/www/p85/core-r && php artisan key:generate --env=testing && php artisan test'
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Jalankan worker dan scheduler khusus proyek:
 
-## Contributing
+```sh
+docker compose -f compose.jobs.yml up -d
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Worker mendengarkan queue `high,default,low`. Scheduler menjalankan `core:heartbeat` setiap menit sebagai probe awal. Kedua proses memakai PHP 8.5 dan jaringan bersama; layanan infrastruktur tidak dibuat ulang.
 
-## Code of Conduct
+Nginx bersama melayani aplikasi di `https://core-r.p85.test:8443`; host perlu diarahkan ke mesin development dan sertifikat development perlu dipercaya. Cek API di `/api/health`. Respons health memberi status layanan wajib (PostgreSQL, Redis) dan opsional (storage, AI). Gunakan `php artisan make:module Name` untuk membuat provider dan route modul baru.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Redis memakai DB 0 untuk cache, 1 untuk queue, dan 2 untuk session. Testing memakai DB 13, 14, dan 15 dengan prefix berbeda. Tes database memakai `laravel_core_test`, terpisah dari database development. Jalankan `php artisan test` dan `vendor/bin/pint --test` di PHP 8.5 sebelum merge.
