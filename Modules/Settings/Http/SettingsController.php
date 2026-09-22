@@ -1,0 +1,57 @@
+<?php
+
+namespace Modules\Settings\Http;
+
+use Core\Audit\Audit;
+use Core\Http\ApiResponse;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Modules\Settings\Settings;
+use Modules\Settings\SettingsRegistry;
+
+class SettingsController
+{
+    public function public(Settings $settings): JsonResponse
+    {
+        return ApiResponse::success($settings->all(publicOnly: true));
+    }
+
+    public function index(Settings $settings): JsonResponse
+    {
+        return ApiResponse::success($settings->all());
+    }
+
+    public function metadata(Settings $settings): JsonResponse
+    {
+        return ApiResponse::success(collect(SettingsRegistry::DEFINITIONS)->map(
+            fn (array $definition, string $key): array => [
+                'key' => $key,
+                'value' => $settings->get($key),
+                ...$definition,
+            ]
+        )->values());
+    }
+
+    public function update(Request $request, Settings $settings): JsonResponse
+    {
+        $values = $request->validate(['settings' => ['required', 'array']])['settings'];
+        $unknown = array_diff(array_keys($values), array_keys(SettingsRegistry::DEFINITIONS));
+        abort_if($unknown !== [], 422, 'Unknown setting keys: '.implode(', ', $unknown));
+
+        $validated = collect($values)->mapWithKeys(function (mixed $value, string $key): array {
+            $validatedValue = Validator::make(['value' => $value], ['value' => SettingsRegistry::DEFINITIONS[$key]['rules']])->validate()['value'];
+
+            return [$key => $validatedValue];
+        })->all();
+        $before = collect(array_keys($validated))->mapWithKeys(fn (string $key) => [$key => $settings->get($key)])->all();
+
+        foreach ($validated as $key => $value) {
+            $settings->put($key, $value, $request->user()->id);
+        }
+
+        Audit::record('settings.updated', metadata: ['before' => $before, 'after' => $validated]);
+
+        return ApiResponse::success($settings->all());
+    }
+}

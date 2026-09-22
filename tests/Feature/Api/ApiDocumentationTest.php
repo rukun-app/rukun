@@ -9,8 +9,18 @@ it('serves Swagger UI and a valid OpenAPI document', function () {
     $document = $this->getJson('/docs/api/openapi.json')->assertOk()->json();
 
     expect($document['openapi'])->toStartWith('3.1.')
-        ->and($document['paths'])->toHaveKeys(['/api/health', '/api/example'])
-        ->and($document['components']['schemas'])->toHaveKeys(['ApiError', 'ServiceHealth']);
+        ->and($document['paths'])->toHaveKeys([
+            '/api/health', '/api/example', '/api/auth/register', '/api/auth/login', '/api/auth/me', '/api/auth/profile', '/api/auth/password',
+            '/api/auth/logout', '/api/auth/logout-all', '/api/auth/email/resend', '/api/auth/email/verify/{id}/{hash}',
+            '/api/auth/forgot-password', '/api/auth/reset-password', '/api/permissions', '/api/roles', '/api/roles/{role}',
+            '/api/auth/tokens', '/api/auth/tokens/{token}', '/api/users', '/api/users/{user}', '/api/users/{user}/status',
+            '/api/users/{user}/roles', '/api/settings/public', '/api/settings', '/api/settings/metadata', '/api/audit-events',
+        ])
+        ->and($document['paths']['/api/auth/login']['post'])->toHaveKey('requestBody')
+        ->and($document['paths']['/api/auth/login']['post']['responses']['200']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/LoginSuccessResponse')
+        ->and($document['paths']['/api/auth/login']['post']['responses']['422']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/ValidationErrorResponse')
+        ->and($document['paths']['/api/settings']['patch'])->toHaveKey('requestBody')
+        ->and($document['components']['schemas'])->toHaveKeys(['ApiError', 'ServiceHealth', 'LoginSuccessResponse', 'ErrorResponse', 'ValidationErrorResponse']);
 });
 
 it('can disable public API documentation', function () {

@@ -11,3 +11,12 @@ it('uses a consistent error response', function () {
         ->assertJsonPath('success', false)
         ->assertJsonStructure(['message', 'errors']);
 });
+
+it('returns a clear unauthenticated API response', function () {
+    $this->getJson('/api/auth/me')->assertUnauthorized()
+        ->assertExactJson(['success' => false, 'message' => 'Unauthenticated.', 'errors' => []]);
+
+    $this->get('/api/auth/me')->assertUnauthorized()
+        ->assertHeader('Content-Type', 'application/json')
+        ->assertExactJson(['success' => false, 'message' => 'Unauthenticated.', 'errors' => []]);
+});

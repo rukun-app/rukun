@@ -2,6 +2,7 @@
 
 namespace Core\Providers;
 
+use Core\Console\BootstrapAdminCommand;
 use Core\Console\GenerateApiDocsCommand;
 use Core\Console\MakeModuleCommand;
 use Illuminate\Support\ServiceProvider;
@@ -12,6 +13,7 @@ class ModuleServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->commands([
+                BootstrapAdminCommand::class,
                 GenerateApiDocsCommand::class,
                 MakeModuleCommand::class,
             ]);

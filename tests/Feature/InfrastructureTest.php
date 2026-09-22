@@ -42,5 +42,7 @@ it('registers and executes the scheduler command', function () {
     expect(Artisan::call('core:heartbeat'))->toBe(0);
     expect(Artisan::output())->toContain('Core scheduler is running.');
     expect(Artisan::call('schedule:list'))->toBe(0);
-    expect(Artisan::output())->toContain('core:heartbeat');
+    expect(Artisan::output())->toContain('core:heartbeat')
+        ->toContain('sanctum:prune-expired --hours=24')
+        ->toContain('telescope:prune --hours=48');
 });

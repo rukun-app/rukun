@@ -34,3 +34,38 @@ php artisan api-docs:generate
 ```
 
 Artefak default ditulis ke `storage/app/api-docs/openapi.json` dan tidak perlu di-commit. Tes API harus memeriksa perilaku endpoint serta keberadaannya dalam dokumen OpenAPI.
+
+Endpoint koleksi menggunakan cursor pagination. Client mengirim `per_page` (default 20, maksimum 100) dan meneruskan nilai opaque `next_cursor` atau `prev_cursor` sebagai query `cursor`. Client tidak boleh membaca atau membentuk isi cursor sendiri. Query koleksi harus mempunyai urutan yang stabil dan unik, dengan primary key sebagai urutan terakhir.
+
+## Identity, RBAC, dan Settings
+
+Jalankan migrasi dan seed registry permission setelah instalasi atau deployment:
+
+```sh
+php artisan migrate --force
+php artisan db:seed --class=Database\\Seeders\\RbacSeeder --force
+```
+
+Buat administrator pertama secara interaktif. Perintah akan menolak bootstrap jika `super-admin` sudah dimiliki user lain:
+
+```sh
+php artisan identity:bootstrap-admin admin@example.com --name="Administrator"
+```
+
+Authentication menggunakan Sanctum Bearer token. Profil user dibatasi pada nama, email, status `active`/`suspended`, waktu verifikasi, dan login terakhir. Role disimpan secara dinamis dan memperoleh permission berbentuk `resource.action`; controller tidak membuat keputusan berdasarkan nama role. Permission merupakan registry kapabilitas aplikasi yang dikelola oleh `RbacSeeder`.
+
+Token milik user dapat dilihat melalui `GET /api/auth/tokens` dan dicabut per perangkat melalui `DELETE /api/auth/tokens/{token}`. Administrasi user mendukung pencarian serta filter status dan role dengan cursor pagination. Perubahan role wajib mengirim nilai `updated_at` terbaru agar perubahan admin lain tidak tertimpa.
+
+Settings global memiliki definisi tipe, default, validasi, dan visibilitas publik di `Modules/Settings/SettingsRegistry.php`. Nilai database menimpa default kode dan dicache di Redis. Credential, encryption key, serta koneksi infrastruktur tetap menggunakan environment. Perubahan RBAC, status user, settings, dan peristiwa authentication dicatat di `audit_events` tanpa password atau token.
+
+Metadata settings tersedia melalui `GET /api/settings/metadata`. Audit dapat dibaca oleh pemilik permission `audit.view` melalui `GET /api/audit-events` dengan filter `event`, `actor_id`, dan cursor pagination. Scheduler membersihkan token Sanctum kedaluwarsa setiap hari dan data Telescope berumur lebih dari 48 jam.
+
+## Telescope
+
+Laravel Telescope tersedia di `https://core-r.p85.test:8443/telescope` untuk memantau request dan response API, query, cache, Redis, job, mail, notification, log, serta exception. Password, reset token, cookie, dan header Authorization disembunyikan dari rekaman.
+
+Telescope aktif secara default hanya pada environment `local`. Gunakan `TELESCOPE_ENABLED=false` untuk menonaktifkannya. Bersihkan data lama secara berkala:
+
+```sh
+php artisan telescope:prune --hours=48
+```
