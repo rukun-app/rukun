@@ -13,7 +13,7 @@ class OpenApiDocument
         'readAllNotifications', 'deleteNotification', 'updateNotificationPreferences',
         'createRole', 'updateRole', 'deleteRole', 'createUser', 'updateUserStatus',
         'syncUserRoles', 'updateSettings',
-        'receiveMidtransNotification',
+        'createPayment', 'receiveMidtransNotification',
         'resetSetting',
     ];
 
@@ -35,13 +35,14 @@ class OpenApiDocument
 
         $document = json_decode($openApi->toJson(), true, flags: JSON_THROW_ON_ERROR);
 
-        foreach (['/api/files', '/api/users'] as $path) {
+        foreach (['/api/files', '/api/users', '/api/payments'] as $path) {
             $operation = &$document['paths'][$path]['post'];
+            $required = $path === '/api/payments';
             $operation['parameters'][] = [
                 'name' => 'Idempotency-Key',
                 'in' => 'header',
-                'required' => false,
-                'description' => 'Unique key (8-128 characters) used to safely replay this request. Reusing it with a different payload returns 409.',
+                'required' => $required,
+                'description' => ($required ? 'Required unique key' : 'Unique key').' (8-128 characters) used to safely replay this request. Reusing it with a different payload returns 409.',
                 'schema' => ['type' => 'string', 'minLength' => 8, 'maxLength' => 128, 'pattern' => '^[A-Za-z0-9._:-]+$'],
                 'example' => 'client-operation-0199a4e7',
             ];

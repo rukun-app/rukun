@@ -10,6 +10,9 @@ Fondasi domain-neutral utama dalam roadmap ini:
 2. **Multilingual Foundation** untuk Bahasa Inggris dan Bahasa Indonesia pada API, validation, email, notification, dan modul berikutnya.
 3. **Notification Foundation** untuk notifikasi in-app dan email yang berjalan melalui queue, memiliki status baca, serta preferensi user.
 4. **Realtime & Polling Foundation** agar modul dapat menerbitkan event yang diterima melalui WebSocket atau disinkronkan ulang melalui polling cursor.
+5. **Payment Foundation** untuk checkout generik, Midtrans Snap, webhook tervalidasi, redirect pengguna, audit, dan event status tanpa memasukkan lifecycle order bisnis ke Core.
+
+> **Status per 28 September 2026:** V2.1–V2.7, V2.8C, dan V2.9 selesai. V2.8A Webhook Umum dan V2.8B Import/Export tetap backlog opsional. Boilerplate sudah dapat dijadikan baseline proyek bisnis baru.
 
 Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis berikutnya menggunakan kontrak dan service yang disediakan roadmap V2 tanpa bergantung langsung pada MinIO, SMTP provider, Reverb, atau struktur internal notifikasi.
 
@@ -34,7 +37,7 @@ Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis be
 | V2.5 | Operational Reliability | Selesai | Request ID, structured logging, queue failure policy, dan operational commands |
 | V2.6 | API Reliability & Protection | Selesai | Idempotency dan named rate limiters |
 | V2.7 | Automated Quality Gate | Selesai | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
-| V2.8 | Integration Foundation | Dalam proses | Payment foundation selesai; webhook umum serta import/export berikutnya |
+| V2.8 | Integration Foundation | Sebagian selesai | V2.8C Payment selesai; V2.8A webhook umum dan V2.8B import/export tetap backlog |
 | V2.9 | Runtime Settings Governance | Selesai | Database override, environment fallback, grouping metadata, dan reset API |
 
 Setiap fase harus lulus test dan dokumentasinya sendiri sebelum fase berikutnya dimulai.
@@ -710,12 +713,18 @@ V2.8 dibagi menjadi tiga submodule yang dapat dikerjakan terpisah.
 - Pemetaan status provider ke status internal, termasuk paid, failure, expiry, refund, dan chargeback.
 - Event `PaymentStatusChanged`, durable realtime event `payment.updated`, audit, ownership, permission administrator, OpenAPI, dan test.
 - Modul bisnis tetap bertanggung jawab atas harga, invoice/order lifecycle, hak akses create payment, serta aksi setelah pembayaran berhasil.
+- Endpoint administratif `POST /api/payments` memakai permission `payments.create`, rate limit, dan `Idempotency-Key` wajib.
+- Endpoint owner/admin `GET /api/payments/{payment}` menyediakan status dan checkout URL tanpa mengekspos token/provider order internal.
+- Notification test Sandbox hanya diterima ketika signature valid dan tidak membuat transaksi fiktif.
+- Halaman redirect publik finish, unfinish, dan error tersedia dalam `en`/`id`; redirect tidak dipercaya sebagai sumber status final.
+- Origin redirect berasal dari `PAYMENT_REDIRECT_BASE_URL` dengan fallback `APP_URL`.
 
 Acceptance minimum V2.8:
 
 - Webhook dapat diverifikasi, di-retry, diaudit, dan tidak dapat mengakses network target terlarang.
 - Import/export tidak menahan HTTP request panjang dan aman terhadap retry.
 - Progress dapat dipantau tanpa bergantung pada WebSocket.
+- Payment checkout dapat dibuat idempotent, callback asli memperbarui status, callback test Sandbox aman, dan redirect pengguna tersedia melalui HTTPS publik.
 
 ### V2.9 — Runtime Settings Governance
 
@@ -739,54 +748,66 @@ Acceptance minimum V2.9:
 
 ### File Management
 
-- [ ] File private dapat di-upload, didaftar, dilihat, diunduh, diubah metadata, dan dihapus oleh owner.
-- [ ] User lain menerima response aman tanpa mengetahui keberadaan/path file.
-- [ ] Administrator membutuhkan permission eksplisit untuk operasi lintas owner.
-- [ ] Binary tersimpan melalui Laravel Filesystem dan metadata tersimpan di PostgreSQL.
-- [ ] Response tidak mengekspos storage path, disk credential, atau internal ID.
-- [ ] Size, MIME, filename, dan metadata tervalidasi.
-- [ ] Delete dan cleanup aman terhadap retry.
-- [ ] Attachment dapat digunakan modul bisnis melalui service/policy yang jelas.
-- [ ] MinIO integration verification berhasil.
+- [x] File private dapat di-upload, didaftar, dilihat, diunduh, diubah metadata, dan dihapus oleh owner.
+- [x] User lain menerima response aman tanpa mengetahui keberadaan/path file.
+- [x] Administrator membutuhkan permission eksplisit untuk operasi lintas owner.
+- [x] Binary tersimpan melalui Laravel Filesystem dan metadata tersimpan di PostgreSQL.
+- [x] Response tidak mengekspos storage path, disk credential, atau internal ID.
+- [x] Size, MIME, filename, dan metadata tervalidasi.
+- [x] Delete dan cleanup aman terhadap retry.
+- [x] Attachment dapat digunakan modul bisnis melalui service/policy yang jelas.
+- [x] MinIO integration verification berhasil.
 
 ### Multilingual
 
-- [ ] API mendukung `en` dan `id` dengan `en` sebagai fallback terakhir.
-- [ ] Locale dapat berasal dari header, preferensi user, atau default aplikasi dengan precedence terdokumentasi.
-- [ ] Response mengirim `Content-Language` dan error memiliki `code` stabil.
-- [ ] Validation, authentication, authorization, settings metadata, serta business error utama diterjemahkan.
-- [ ] Notification dan email queue mempertahankan locale recipient.
-- [ ] Translation key module memiliki parity `en` dan `id`.
-- [ ] Machine-readable value dan audit event tidak diterjemahkan.
+- [x] API mendukung `en` dan `id` dengan `en` sebagai fallback terakhir.
+- [x] Locale dapat berasal dari header, preferensi user, atau default aplikasi dengan precedence terdokumentasi.
+- [x] Response mengirim `Content-Language` dan error memiliki `code` stabil.
+- [x] Validation, authentication, authorization, settings metadata, serta business error utama diterjemahkan.
+- [x] Notification dan email queue mempertahankan locale recipient.
+- [x] Translation key module memiliki parity `en` dan `id`.
+- [x] Machine-readable value dan audit event tidak diterjemahkan.
 
 ### Notifications
 
-- [ ] User memiliki inbox terisolasi dengan cursor pagination.
-- [ ] Read/unread, unread count, read-all, delete, dan filter bekerja.
-- [ ] Preferensi channel tervalidasi dan security notification wajib tetap aktif.
-- [ ] Database dan email delivery berjalan melalui abstraction Laravel.
-- [ ] Email queue memakai prioritas dan retry yang sesuai.
-- [ ] MailDev menerima notification integration test.
-- [ ] Failure email tidak merusak transaksi bisnis atau database notification.
+- [x] User memiliki inbox terisolasi dengan cursor pagination.
+- [x] Read/unread, unread count, read-all, delete, dan filter bekerja.
+- [x] Preferensi channel tervalidasi dan security notification wajib tetap aktif.
+- [x] Database dan email delivery berjalan melalui abstraction Laravel.
+- [x] Email queue memakai prioritas dan retry yang sesuai.
+- [x] MailDev menerima notification integration test.
+- [x] Failure email tidak merusak transaksi bisnis atau database notification.
 
 ### Quality
 
-- [ ] Seluruh endpoint memakai response API standar.
-- [ ] Permission dan audit registry diperbarui.
-- [ ] Swagger menjelaskan request, response, filter, security, dan error.
-- [ ] Seluruh test lama dan baru lulus.
-- [ ] Laravel Pint lulus.
-- [ ] README diperbarui setelah implementasi selesai.
+- [x] Seluruh endpoint memakai response API standar.
+- [x] Permission dan audit registry diperbarui.
+- [x] Swagger menjelaskan request, response, filter, security, dan error.
+- [x] Seluruh test lama dan baru lulus.
+- [x] Laravel Pint lulus.
+- [x] README diperbarui setelah implementasi selesai.
 
 ### Realtime dan polling
 
-- [ ] Modul dapat menerbitkan event tanpa bergantung langsung pada Reverb.
-- [ ] Event tersimpan durable dan tersedia melalui cursor polling.
-- [ ] Event yang sama dapat diterima melalui private WebSocket channel.
-- [ ] Disconnect, reconnect, deduplication, dan catch-up polling tervalidasi.
-- [ ] Channel authorization memakai ownership/policy/permission resource.
-- [ ] Reverb yang tidak tersedia tidak menggagalkan transaksi utama.
-- [ ] Event retention dan expired cursor memiliki perilaku terdokumentasi.
+- [x] Modul dapat menerbitkan event tanpa bergantung langsung pada Reverb.
+- [x] Event tersimpan durable dan tersedia melalui cursor polling.
+- [x] Event yang sama dapat diterima melalui private WebSocket channel.
+- [x] Disconnect, reconnect, deduplication, dan catch-up polling tervalidasi.
+- [x] Channel authorization memakai ownership/policy/permission resource.
+- [x] Reverb yang tidak tersedia tidak menggagalkan transaksi utama.
+- [x] Event retention dan expired cursor memiliki perilaku terdokumentasi.
+
+### Payment Foundation
+
+- [x] Provider contract memisahkan modul bisnis dari Midtrans.
+- [x] Checkout generik tersimpan dengan UUID publik dan referensi domain tanpa foreign key lintas modul.
+- [x] `POST /api/payments` dilindungi RBAC, rate limit, dan idempotency wajib.
+- [x] Callback memverifikasi signature, currency, dan nominal asli serta aman terhadap redelivery.
+- [x] Status provider dipetakan ke status internal dan tidak dapat menurunkan pembayaran yang sudah paid melalui event stale.
+- [x] Test notification Sandbox diakui tanpa membuat pembayaran fiktif.
+- [x] Redirect finish, unfinish, dan error tersedia dalam `en` dan `id` tanpa dipercaya sebagai status final.
+- [x] Payment status menerbitkan audit dan durable realtime event.
+- [x] Credential tetap environment-only dan kontrak API terdokumentasi di OpenAPI.
 
 ## 23. Keputusan yang dikunci untuk implementasi
 
@@ -823,6 +844,8 @@ Acceptance minimum V2.9:
 | Payment abstraction | Provider contract; modul bisnis tidak memanggil Midtrans langsung |
 | Payment provider awal | Midtrans Snap, sandbox sebagai default |
 | Payment callback | Signature dan nominal diverifikasi; redelivery idempotent |
+| Payment creation API | RBAC `payments.create`, named rate limit, dan `Idempotency-Key` wajib |
+| Payment redirect | Finish/unfinish/error publik; informatif saja, status final dari webhook/status provider |
 | Runtime settings precedence | Database override → environment fallback → code default |
 | Settings schema | Registry kode kanonik; row database menyimpan snapshot type dan group |
 | Environment-only config | Secret, credential, topology infrastructure, dan deployment flags |
@@ -846,3 +869,21 @@ Urutan implementasi dikunci mengikuti nomor fase:
 File lifecycle dikerjakan lebih awal karena memiliki risiko integritas antara PostgreSQL dan object storage. Multilingual diselesaikan sebelum notification agar inbox dan email tidak perlu dirombak kemudian. Notification menyediakan use case realtime pertama. Realtime menjadi dasar progress import/export dan webhook event registry. Reliability dan CI mengunci kualitas fondasi sebelum integration module diperluas.
 
 Setiap fase harus memperbarui README, OpenAPI, permission/settings registry, audit event, serta test yang relevan. Implementasi fase berikutnya tidak dimulai sebelum acceptance minimum fase aktif lulus.
+
+## 25. Baseline rilis boilerplate
+
+Baseline siap dipakai untuk proyek baru setelah langkah berikut dipenuhi pada environment tujuan:
+
+1. Ganti identitas aplikasi, hostname, database, prefix Redis, indeks Redis, bucket storage, nama container, dan credential Reverb.
+2. Pertahankan database serta Redis testing yang terisolasi dari development.
+3. Isi credential infrastruktur dan provider hanya melalui environment yang tidak dilacak Git.
+4. Jalankan migration, `RbacSeeder`, dan `identity:bootstrap-admin`.
+5. Verifikasi health, MailDev, MinIO, queue, scheduler, Swagger, Telescope, polling, dan bila diperlukan Reverb.
+6. Untuk Midtrans lokal, gunakan origin HTTPS publik sementara atau domain development yang dapat dijangkau provider. Jangan simpan hostname tunnel sementara di file Git.
+7. Jalankan seluruh Pest test, Pint, generator/validator OpenAPI, dan pemeriksaan secret sebelum membuat modul bisnis.
+
+Backlog Core yang tidak menghalangi proyek baru:
+
+- V2.8A webhook keluar generik dengan signature, delivery log, retry, dan proteksi SSRF.
+- V2.8B orchestration import/export async.
+- Provider pembayaran tambahan, refund API, settlement/reconciliation terjadwal, dan fitur bisnis payment ditambahkan ketika domain pertama membutuhkannya.

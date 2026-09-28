@@ -4,7 +4,12 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 
 it('serves Swagger UI and a valid OpenAPI document', function () {
-    $this->get('/docs/api')->assertOk()->assertSee('swagger-ui');
+    $this->get('/docs/api')
+        ->assertOk()
+        ->assertSee('swagger-ui')
+        ->assertSee('href="/docs/api/assets/swagger-ui.css"', false)
+        ->assertSee('src="/docs/api/assets/swagger-ui-bundle.js"', false)
+        ->assertSee('url: "\/docs\/api\/openapi.json"', false);
 
     $document = $this->getJson('/docs/api/openapi.json')->assertOk()->json();
 
@@ -18,7 +23,7 @@ it('serves Swagger UI and a valid OpenAPI document', function () {
             '/api/files', '/api/files/{file}', '/api/files/{file}/download',
             '/api/notifications', '/api/notifications/unread-count', '/api/notifications/{notification}',
             '/api/notifications/{notification}/read', '/api/notifications/read-all', '/api/notification-preferences',
-            '/api/payments/{payment}', '/api/payments/webhooks/midtrans',
+            '/api/payments', '/api/payments/{payment}', '/api/payments/webhooks/midtrans',
         ])
         ->and($document['paths']['/api/auth/login']['post'])->toHaveKey('requestBody')
         ->and($document['paths']['/api/auth/login']['post']['responses']['200']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/LoginSuccessResponse')
@@ -90,6 +95,12 @@ it('documents idempotency and named rate limit contracts', function () {
             ->and($operation['responses']['201']['headers'])->toHaveKey('Idempotency-Replayed')
             ->and($operation['responses']['409']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/ErrorResponse');
     }
+
+    $paymentOperation = $document['paths']['/api/payments']['post'];
+    $paymentIdempotency = collect($paymentOperation['parameters'])->firstWhere('name', 'Idempotency-Key');
+    expect($paymentIdempotency['required'])->toBeTrue()
+        ->and($paymentOperation['responses']['201']['headers'])->toHaveKey('Idempotency-Replayed')
+        ->and($paymentOperation['responses'])->toHaveKeys(['409', '429']);
 
     foreach ([['/api/auth/login', 'post'], ['/api/events', 'get'], ['/api/settings', 'patch']] as [$path, $method]) {
         $response = $document['paths'][$path][$method]['responses']['429'];

@@ -7,11 +7,14 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 ## Daftar isi
 
 - [Status implementasi](#status-implementasi)
+- [Memulai proyek baru](#memulai-proyek-baru)
 - [Teknologi dan struktur](#teknologi-dan-struktur)
 - [Instalasi lokal](#instalasi-lokal)
 - [Menjalankan aplikasi](#menjalankan-aplikasi)
 - [Environment dan isolasi testing](#environment-dan-isolasi-testing)
 - [Identity dan token](#identity-dan-token)
+- [Multilingual API](#multilingual-api)
+- [Notification](#notification)
 - [RBAC](#rbac)
 - [Settings dan audit](#settings-dan-audit)
 - [Daftar endpoint](#daftar-endpoint)
@@ -45,12 +48,80 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 | V2.5: Operational Reliability | Selesai | Request ID, correlation context, JSON logging, redaction, job policy, failed job summary, dan pruning |
 | V2.6: API Reliability & Protection | Selesai | Idempotency key untuk operasi create dan named Redis rate limiter per kelompok endpoint |
 | V2.7: Automated Quality Gate | Selesai | GitHub Actions dengan PHP 8.5, PostgreSQL 16, Redis 7, Pest, Pint, OpenAPI, dan pemeriksaan secret |
-| V2.8C: Payment Foundation | Selesai | Provider contract, transaksi pembayaran generik, Midtrans Snap, callback terverifikasi, audit, dan realtime event |
+| V2.8C: Payment Foundation | Selesai | Checkout API idempotent, Midtrans Snap, callback dan test notification terverifikasi, redirect `en`/`id`, audit, dan realtime event |
 | V2.9: Runtime Settings Governance | Selesai | Database override, fallback environment, default kode, metadata group/type/source, dan reset override |
 | Roadmap V2 lanjutan | Direncanakan | Webhook umum dan import/export foundation; lihat [`plan-v2.md`](plan-v2.md) |
 | Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
 
-Verifikasi terakhir: **85 test lulus dengan 451 assertions**.
+Verifikasi terakhir: **90 test lulus dengan 490 assertions** dan Laravel Pint lulus pada PHP 8.5.
+
+## Memulai proyek baru
+
+Gunakan repository ini sebagai baseline sebelum menambahkan modul bisnis. Buat repository atau working copy baru, kemudian ubah identitas dan isolasi resource proyek sebelum migration pertama dijalankan.
+
+### 1. Ganti identitas proyek
+
+| Bagian | Contoh Core R | Nilai proyek baru |
+|---|---|---|
+| `APP_NAME` | `CoreR` | Nama aplikasi baru |
+| `APP_URL` / `FRONTEND_URL` | `core-r.p85.test` | Host proyek baru |
+| Database development/testing | `laravel_core` / `laravel_core_test` | Database khusus proyek |
+| `CORE_DB_PREFIX` | `rcore_` | Prefix core yang unik dan stabil |
+| `REDIS_PREFIX` | `core-r:` | Prefix unik proyek |
+| Redis DB development | `0`, `1`, `2` | Indeks yang tidak dipakai proyek lain |
+| Redis DB testing | `13`, `14`, `15` | Indeks testing yang terisolasi |
+| Bucket MinIO | Milik Core R | Bucket khusus proyek |
+| Container job/realtime | `core-r-*` | Nama service khusus proyek |
+| Reverb credential/origin | Milik Core R | Credential dan host baru |
+
+Cari sisa identitas lama sebelum mulai coding:
+
+```sh
+rg -n "Core R|CoreR|core-r|laravel_core|rcore_" --glob '!vendor/**'
+```
+
+Pertahankan prefix tabel core untuk Identity, RBAC, Settings, Audit, Files, Notifications, Realtime, dan Payments. Migration serta model modul bisnis memakai connection `pgsql` tanpa prefix core.
+
+### 2. Buat environment lokal
+
+```sh
+cp .env.example .env
+cp .env.testing.example .env.testing
+
+docker exec -w /var/www/p85/core-r dev-php85 composer install
+docker exec -w /var/www/p85/core-r dev-php85 php artisan key:generate
+docker exec -w /var/www/p85/core-r dev-php85 php artisan key:generate --env=testing
+```
+
+Sesuaikan path `/var/www/p85/core-r` dengan mount proyek baru. Isi credential hanya di `.env` lokal. Buat database development, database testing, serta bucket object storage yang terpisah.
+
+### 3. Inisialisasi aplikasi
+
+```sh
+docker exec -w /var/www/p85/core-r dev-php85 php artisan migrate
+docker exec -w /var/www/p85/core-r dev-php85 php artisan db:seed --class=Database\\Seeders\\RbacSeeder
+docker exec -it -w /var/www/p85/core-r dev-php85 php artisan identity:bootstrap-admin admin@example.com --name="Administrator"
+docker compose -f compose.jobs.yml up -d
+```
+
+Aktifkan `compose.realtime.yml` hanya jika proyek memakai WebSocket. Polling durable tetap tersedia ketika Reverb dinonaktifkan.
+
+### 4. Gate sebelum modul bisnis
+
+- `/api/health` menunjukkan PostgreSQL dan Redis `up`.
+- Swagger dapat dibuka dan login administrator berhasil.
+- Upload/download MinIO, session Redis, queue, scheduler, dan MailDev telah diuji.
+- Database dan indeks Redis testing berbeda dari development.
+- `php artisan test`, Pint, generator OpenAPI, dan pemeriksaan secret lulus.
+- Tidak ada credential, URL tunnel sementara, atau token administrator yang terlacak Git.
+
+### 5. Mulai modul bisnis
+
+```sh
+docker exec -w /var/www/p85/core-r dev-php85 php artisan make:module Billing
+```
+
+Modul bisnis memiliki migration, model, policy/permission, service, API, audit event, translation `en`/`id`, OpenAPI, dan Feature test sendiri. Harga pembayaran dihitung dari order/invoice di server. Modul lalu memanggil `PaymentManager`; client tidak menjadi sumber nominal yang dipercaya.
 
 ## Teknologi dan struktur
 
@@ -76,7 +147,7 @@ Verifikasi terakhir: **85 test lulus dengan 451 assertions**.
 | `Modules/Access/` | User, role, dan permission administration |
 | `Modules/Settings/` | Registry dan penyimpanan settings |
 | `Modules/Realtime/` | Durable event stream, polling, dan WebSocket publisher |
-| `Modules/Payments/` | Payment contract, transaksi generik, Midtrans Snap, callback, dan status event |
+| `Modules/Payments/` | Checkout API, payment contract, Midtrans Snap, callback, redirect, dan status event |
 | `Modules/Example/` | Contoh struktur modul |
 | `tests/Feature/` | Test API, infrastruktur, auth, RBAC, settings, dan modul |
 | `compose.jobs.yml` | Worker dan scheduler Core R |
@@ -164,6 +235,7 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 | `RATE_LIMIT_*` | Batas named rate limiter per menit | Lihat `.env.example` |
 | `PAYMENT_GATEWAY` | Adapter pembayaran aktif | `midtrans` |
 | `MIDTRANS_*` | Mode, credential, endpoint override, dan timeout Midtrans | Credential hanya pada environment lokal |
+| `PAYMENT_REDIRECT_BASE_URL` | Origin HTTPS halaman finish/unfinish/error | Fallback ke `APP_URL` |
 
 | Resource | Development | Testing |
 |---|---|---|
@@ -251,6 +323,7 @@ Role tersimpan secara dinamis. Controller memeriksa permission `resource.action`
 | `files.update-any` | Mengubah metadata file milik user lain |
 | `files.delete-any` | Menghapus file milik user lain |
 | `payments.view-any` | Melihat status pembayaran milik user lain |
+| `payments.create` | Membuat checkout pembayaran generik untuk pengujian atau integrasi administratif |
 
 | Role bawaan | Akses |
 |---|---|
@@ -376,6 +449,19 @@ Filter daftar file: `search`, `mime_type`, `from`, `to`, `per_page`, dan `cursor
 
 Audit mendukung filter `event`, `actor_id`, `per_page`, dan `cursor`. Detail request dan response tersedia pada Swagger.
 
+### Payments dan redirect
+
+| Method | Endpoint | Akses | Fungsi |
+|---|---|---|---|
+| `POST` | `/api/payments` | `payments.create` | Membuat checkout; `Idempotency-Key` wajib |
+| `GET` | `/api/payments/{payment}` | Owner / `payments.view-any` | Status dan URL checkout |
+| `POST` | `/api/payments/webhooks/midtrans` | Midtrans signature | Notification pembayaran dan test Sandbox |
+| `GET` | `/payments/finish` | Publik | Halaman redirect pembayaran dikirim |
+| `GET` | `/payments/unfinish` | Publik | Halaman redirect checkout belum selesai |
+| `GET` | `/payments/error` | Publik | Halaman redirect pembayaran gagal |
+
+Ketiga halaman redirect hanya memberi informasi kepada pengguna. Perubahan status tetap berasal dari webhook yang tervalidasi atau status API provider.
+
 ## Standar API
 
 Response sukses:
@@ -479,7 +565,7 @@ Default retensi failed job adalah 168 jam. Payload dan exception trace hanya dip
 
 ## API reliability dan protection
 
-`POST /api/files` dan `POST /api/users` menerima header opsional `Idempotency-Key`. Gunakan nilai unik 8-128 karakter untuk satu operasi logis dan kirim nilai yang sama ketika request perlu diulang.
+`POST /api/files` dan `POST /api/users` menerima header opsional `Idempotency-Key`. `POST /api/payments` mewajibkan header tersebut karena retry checkout tidak boleh membuat transaksi provider ganda. Gunakan nilai unik 8-128 karakter untuk satu operasi logis dan kirim nilai yang sama ketika request perlu diulang.
 
 | Kondisi | Hasil |
 |---|---|
@@ -500,7 +586,7 @@ Rate limiter memakai Redis dan dipisahkan menurut tujuan endpoint:
 | Upload | 20 per user | Upload file |
 | Polling event | 120 per user | Durable event polling |
 | Mutasi notifikasi | 60 per user | Read, unread, read-all, delete, preferences |
-| Administrasi sensitif | 30 per user | Mutasi role, user, dan settings |
+| Administrasi sensitif | 30 per user | Mutasi role, user, settings, dan pembuatan payment |
 
 Nilai tersebut dapat diubah melalui variable `RATE_LIMIT_*` di environment. Setelah perubahan, muat ulang configuration cache dan worker. Ketika batas terlampaui API mengembalikan HTTP `429`, code `request.rate_limited`, serta header `Retry-After`, `X-RateLimit-Limit`, dan `X-RateLimit-Remaining`. Client menunggu sekurangnya selama `Retry-After` sebelum mencoba kembali.
 
@@ -546,6 +632,7 @@ $payment = app(PaymentManager::class)->create(
 | Nominal | Integer, mata uang awal `IDR` |
 | Referensi bisnis | `reference_type` dan `reference_id`; tidak membuat foreign key lintas modul |
 | Checkout | Midtrans Snap sandbox secara default |
+| Membuat checkout | `POST /api/payments`, memerlukan permission `payments.create` dan header `Idempotency-Key` |
 | Callback | `POST /api/payments/webhooks/midtrans` |
 | Status user | `GET /api/payments/{payment}` untuk owner atau permission `payments.view-any` |
 | Event internal | `PaymentStatusChanged` |
@@ -563,9 +650,35 @@ MIDTRANS_SERVER_KEY=
 MIDTRANS_CLIENT_KEY=
 MIDTRANS_MERCHANT_ID=
 MIDTRANS_PRODUCTION=false
+PAYMENT_REDIRECT_BASE_URL=https://public-app.example.com
 ```
 
 Atur Notification URL Midtrans ke `/api/payments/webhooks/midtrans` pada host publik HTTPS. Modul bisnis wajib memakai idempotency pada endpoint yang memanggil `PaymentManager::create()` dan menangani `PaymentStatusChanged` untuk mengubah invoice/order miliknya. Core tidak otomatis menganggap resource bisnis selesai hanya karena pembayaran berubah menjadi `paid`.
+
+Gunakan halaman publik berikut pada konfigurasi redirect Midtrans:
+
+| Hasil Midtrans | URL |
+|---|---|
+| Finish | `/payments/finish` |
+| Unfinish | `/payments/unfinish` |
+| Error | `/payments/error` |
+
+`PAYMENT_REDIRECT_BASE_URL` menentukan origin publik ketiga halaman tersebut dan menggunakan `APP_URL` sebagai fallback. Payload Snap otomatis mengirim `callbacks.finish`. URL Unfinish dan Error dapat dipasang pada dashboard Midtrans. Halaman redirect hanya memberi informasi kepada pengguna; status pembayaran final tetap berasal dari webhook tervalidasi atau pemeriksaan status provider.
+
+Untuk pengujian checkout generik melalui Swagger, login sebagai administrator, tekan **Authorize**, lalu panggil `POST /api/payments`. Isi `Idempotency-Key` dengan nilai unik seperti `checkout-order-1001` dan gunakan body berikut:
+
+```json
+{
+  "reference_type": "testing.order",
+  "reference_id": "ORDER-1001",
+  "amount": 105000,
+  "metadata": {
+    "purpose": "sandbox checkout"
+  }
+}
+```
+
+Respons `201` berisi `id`, status `pending`, dan `checkout_url` Midtrans. Pada modul bisnis, nominal tetap harus dihitung dari order atau invoice di server, bukan dipercaya dari input pengguna.
 
 ## Module system
 

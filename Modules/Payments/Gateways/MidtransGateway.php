@@ -23,6 +23,7 @@ class MidtransGateway implements PaymentGateway
                 'email' => $customer['email'] ?? null,
                 'phone' => $customer['phone'] ?? null,
             ]),
+            'callbacks' => ['finish' => $this->redirectUrl('finish')],
             'credit_card' => ['secure' => true],
         ], fn (mixed $value) => $value !== []));
 
@@ -36,8 +37,9 @@ class MidtransGateway implements PaymentGateway
     public function status(string $providerOrderId): array
     {
         $response = $this->client()->get($this->apiUrl().'/v2/'.rawurlencode($providerOrderId).'/status');
-        if (! $response->successful()) {
-            throw new PaymentGatewayException('Unable to retrieve the Midtrans transaction status (HTTP '.$response->status().').');
+        if (! $response->successful() || ! is_string($response->json('transaction_status'))) {
+            $providerStatus = $response->json('status_code');
+            throw new PaymentGatewayException('Unable to retrieve the Midtrans transaction status (HTTP '.$response->status().', provider '.($providerStatus ?: 'unknown').').');
         }
 
         return $response->json();
@@ -84,5 +86,10 @@ class MidtransGateway implements PaymentGateway
     private function apiUrl(): string
     {
         return rtrim(config('payments.midtrans.api_url') ?: (config('payments.midtrans.production') ? 'https://api.midtrans.com' : 'https://api.sandbox.midtrans.com'), '/');
+    }
+
+    private function redirectUrl(string $result): string
+    {
+        return rtrim((string) config('payments.redirect_base_url'), '/').'/payments/'.$result;
     }
 }

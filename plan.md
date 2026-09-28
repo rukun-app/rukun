@@ -1,4 +1,6 @@
-# Laravel Core Boilerplate — Infrastructure Plan (FINAL)
+# Laravel Core Boilerplate — Phase 1 Infrastructure Plan (COMPLETED)
+
+> **Status per 28 September 2026:** seluruh acceptance criteria Phase 1 telah diterapkan dan tetap dijaga oleh automated test. Dokumen ini dipertahankan sebagai keputusan arsitektur dan referensi ketika membuat proyek baru. Implementasi lanjutan dicatat di [`plan-v2.md`](plan-v2.md), sedangkan petunjuk operasional terkini berada di [`README.md`](README.md).
 
 > Dokumen ini **self-contained** — gabungan dari plan awal + semua revisi (Docker network strategy, Redis DB index, session storage decision, dan Testing Foundation/Unit Testing). Cukup gunakan file ini saja untuk coding agent, tidak perlu dokumen sebelumnya.
 
@@ -555,7 +557,7 @@ Phase 1 — Foundation
 └── Documentation
 ```
 
-**Do NOT implement yet:** Auth, RBAC, Audit, Business Modules, Supabase, AI Agents, Embeddings, RAG, Horizon, WebSockets.
+**Batas scope saat Phase 1 direncanakan:** Auth, RBAC, Audit, business module, Supabase, AI Agents, Embeddings, RAG, Horizon, dan WebSockets belum dikerjakan pada fase ini. Identity, RBAC, Audit, dan fondasi realtime kemudian diselesaikan pada roadmap V2; AI dan business module tetap di luar boilerplate saat ini.
 
 ---
 
@@ -586,7 +588,7 @@ Phase 1 — Foundation
 ✓ .env.example and .env.testing.example contain no secrets
 ```
 
-Hanya setelah semua lulus, lanjut ke:
+Phase 1 telah lulus seluruh gate di atas. Kelanjutan historisnya adalah:
 
 ```text
 Phase 2 — Identity
@@ -597,7 +599,9 @@ Phase 2 — Identity
 
 ---
 
-## 33. Immediate Coding Agent Task
+## 33. Catatan Eksekusi Phase 1
+
+Bagian berikut adalah instruksi awal yang sudah selesai dijalankan dan dipertahankan sebagai checklist audit bila fondasi ini dipindahkan ke environment baru.
 
 Inspect repository Laravel Core dan shared Docker development environment yang sudah ada. **Jangan** duplikasi infrastruktur yang sudah ada.
 
@@ -618,9 +622,9 @@ Tentukan:
 13. Dependency Composer yang sudah ada.
 14. Apakah Pest atau PHPUnit sudah ter-install/dikonfigurasi (jika project sudah punya starting point), untuk menentukan perlu instalasi baru atau penyesuaian.
 
-Kemudian ajukan Phase 1 implementation plan yang konkret, termasuk testing foundation (Section 25).
+Kemudian validasi kembali testing foundation pada Section 25.
 
-**Jangan** mulai Phase 2. **Jangan** install package sebelum kebutuhannya jelas. **Jangan** ubah shared Docker infrastructure secara tidak perlu.
+Pada eksekusi awal, Phase 2 baru dimulai setelah seluruh gate Phase 1 lulus. Pada penggunaan boilerplate sekarang, perubahan dependency dan shared infrastructure tetap harus memiliki kebutuhan yang jelas dan dampak lintas proyek harus diperiksa.
 
 Jika perubahan shared Docker diperlukan, jelaskan dulu sebelum melakukan perubahan:
 

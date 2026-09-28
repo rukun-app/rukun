@@ -25,7 +25,9 @@ class PaymentsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'payments');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'payments');
 
         Event::listen(PaymentStatusChanged::class, function (PaymentStatusChanged $event): void {
             if ($event->payment->user === null) {
