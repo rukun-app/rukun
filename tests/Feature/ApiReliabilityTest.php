@@ -89,8 +89,9 @@ it('replays an identical file upload without storing a duplicate', function () {
 it('uses a named Redis rate limiter and returns retry headers', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user);
-    RateLimiter::for('events-poll', fn () => Limit::perMinute(1)->by('events-test:'.$user->id));
-    RateLimiter::clear('events-test:'.$user->id);
+    $limiterKey = 'events-test:'.$user->id.':'.uniqid();
+    RateLimiter::for('events-poll', fn () => Limit::perMinute(1)->by($limiterKey));
+    RateLimiter::clear($limiterKey);
 
     $this->getJson('/api/events')->assertOk();
     $this->getJson('/api/events')->assertTooManyRequests()

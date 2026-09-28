@@ -18,7 +18,7 @@ class PaymentsServiceProvider extends ServiceProvider
                 throw new \RuntimeException('Unsupported payment gateway: '.config('payments.default'));
             }
 
-            return new MidtransGateway;
+            return $this->app->make(MidtransGateway::class);
         });
     }
 

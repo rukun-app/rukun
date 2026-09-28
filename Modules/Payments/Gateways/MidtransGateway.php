@@ -8,9 +8,12 @@ use Modules\Payments\Contracts\PaymentGateway;
 use Modules\Payments\Exceptions\PaymentGatewayException;
 use Modules\Payments\Models\Payment;
 use Modules\Payments\ValueObjects\CheckoutSession;
+use Modules\Settings\Settings;
 
 class MidtransGateway implements PaymentGateway
 {
+    public function __construct(private Settings $settings) {}
+
     public function createCheckout(Payment $payment, array $customer = []): CheckoutSession
     {
         $response = $this->client()->post($this->snapUrl().'/snap/v1/transactions', array_filter([
@@ -55,12 +58,12 @@ class MidtransGateway implements PaymentGateway
 
     private function client(): PendingRequest
     {
-        if (! config('payments.midtrans.enabled')) {
+        if (! $this->settings->get('payments.midtrans_enabled')) {
             throw new PaymentGatewayException('Midtrans is not enabled.');
         }
 
         return Http::acceptJson()->asJson()->withBasicAuth($this->serverKey(), '')
-            ->connectTimeout(3)->timeout(config('payments.midtrans.timeout'));
+            ->connectTimeout(3)->timeout($this->settings->get('payments.midtrans_timeout'));
     }
 
     private function serverKey(): string

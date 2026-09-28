@@ -15,9 +15,11 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RbacSeeder::class);
-    config()->set('payments.midtrans.enabled', true);
+    config()->set('runtime-settings.midtrans_enabled', true);
     config()->set('payments.midtrans.server_key', 'SB-Mid-server-test');
     config()->set('payments.midtrans.production', false);
+    cache()->forget('setting:payments.midtrans_enabled');
+    cache()->forget('setting:payments.midtrans_timeout');
 });
 
 function midtransPayload(Payment $payment, array $overrides = []): array

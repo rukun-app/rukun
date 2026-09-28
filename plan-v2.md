@@ -35,6 +35,7 @@ Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis be
 | V2.6 | API Reliability & Protection | Selesai | Idempotency dan named rate limiters |
 | V2.7 | Automated Quality Gate | Selesai | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
 | V2.8 | Integration Foundation | Dalam proses | Payment foundation selesai; webhook umum serta import/export berikutnya |
+| V2.9 | Runtime Settings Governance | Selesai | Database override, environment fallback, grouping metadata, dan reset API |
 
 Setiap fase harus lulus test dan dokumentasinya sendiri sebelum fase berikutnya dimulai.
 
@@ -716,6 +717,24 @@ Acceptance minimum V2.8:
 - Import/export tidak menahan HTTP request panjang dan aman terhadap retry.
 - Progress dapat dipantau tanpa bergantung pada WebSocket.
 
+### V2.9 — Runtime Settings Governance
+
+1. Terapkan urutan resolusi nilai: database override, fallback `.env` melalui config, lalu default kode.
+2. Setiap definition wajib memiliki `group`, `type`, validation rules, visibility, editability, description, dan fallback config yang eksplisit.
+3. Metadata API harus membawa `group`, effective value, fallback value, dan source agar UI dapat membentuk tab dan status override tanpa hardcode.
+4. Simpan snapshot `type` dan `group` pada row override settings; registry kode tetap menjadi schema kanonik.
+5. Sediakan reset API untuk menghapus database override dan kembali ke environment/default.
+6. Pindahkan hanya runtime policy yang aman: application display, auth policy, file limits, retention, idempotency TTL, rate limits, serta enable/timeout provider pembayaran.
+7. Credential, encryption key, host/port infrastructure, database, Redis, queue, filesystem, mail transport, Midtrans key/mode/endpoint, Reverb secret, logging, debug, Telescope, dan deployment flags tetap environment-only.
+
+Acceptance minimum V2.9:
+
+- Database mengalahkan environment, environment mengalahkan default kode.
+- Nilai boolean, integer, array, dan string mempertahankan tipe setelah melalui Redis cache.
+- Metadata dapat dikelompokkan menjadi tab tanpa pemetaan kategori di frontend.
+- Reset override tercatat di audit dan langsung mengaktifkan fallback.
+- Tidak ada secret yang dapat dibaca atau ditulis melalui Settings API.
+
 ## 22. Acceptance criteria
 
 ### File Management
@@ -804,6 +823,9 @@ Acceptance minimum V2.8:
 | Payment abstraction | Provider contract; modul bisnis tidak memanggil Midtrans langsung |
 | Payment provider awal | Midtrans Snap, sandbox sebagai default |
 | Payment callback | Signature dan nominal diverifikasi; redelivery idempotent |
+| Runtime settings precedence | Database override → environment fallback → code default |
+| Settings schema | Registry kode kanonik; row database menyimpan snapshot type dan group |
+| Environment-only config | Secret, credential, topology infrastructure, dan deployment flags |
 | Pagination | Cursor |
 | Secrets | Environment only |
 
@@ -819,6 +841,7 @@ Urutan implementasi dikunci mengikuti nomor fase:
 6. **V2.6 API Reliability & Protection**
 7. **V2.7 Automated Quality Gate**
 8. **V2.8 Integration Foundation**
+9. **V2.9 Runtime Settings Governance**
 
 File lifecycle dikerjakan lebih awal karena memiliki risiko integritas antara PostgreSQL dan object storage. Multilingual diselesaikan sebelum notification agar inbox dan email tidak perlu dirombak kemudian. Notification menyediakan use case realtime pertama. Realtime menjadi dasar progress import/export dan webhook event registry. Reliability dan CI mengunci kualitas fondasi sebelum integration module diperluas.
 

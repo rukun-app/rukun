@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Modules\Settings\Settings;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,14 +30,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.auth_register'))->by('register:'.$request->ip()));
-        RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.auth_login'))->by('login:'.$request->ip().':'.sha1(Str::lower((string) $request->input('email')))));
-        RateLimiter::for('auth-recovery', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.auth_recovery'))->by('recovery:'.$request->ip().':'.sha1(Str::lower((string) $request->input('email')))));
-        RateLimiter::for('files-upload', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.files_upload'))->by('files:'.$request->user()?->getAuthIdentifier()));
-        RateLimiter::for('events-poll', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.events_poll'))->by('events:'.$request->user()?->getAuthIdentifier()));
-        RateLimiter::for('notifications-mutate', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.notifications_mutate'))->by('notifications:'.$request->user()?->getAuthIdentifier()));
-        RateLimiter::for('admin-sensitive', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.admin_sensitive'))->by('admin:'.$request->user()?->getAuthIdentifier()));
-        RateLimiter::for('payment-webhooks', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.payment_webhooks'))->by('payment-webhooks:'.$request->ip()));
+        RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.auth_register'))->by('register:'.$request->ip()));
+        RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.auth_login'))->by('login:'.$request->ip().':'.sha1(Str::lower((string) $request->input('email')))));
+        RateLimiter::for('auth-recovery', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.auth_recovery'))->by('recovery:'.$request->ip().':'.sha1(Str::lower((string) $request->input('email')))));
+        RateLimiter::for('files-upload', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.files_upload'))->by('files:'.$request->user()?->getAuthIdentifier()));
+        RateLimiter::for('events-poll', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.events_poll'))->by('events:'.$request->user()?->getAuthIdentifier()));
+        RateLimiter::for('notifications-mutate', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.notifications_mutate'))->by('notifications:'.$request->user()?->getAuthIdentifier()));
+        RateLimiter::for('admin-sensitive', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.admin_sensitive'))->by('admin:'.$request->user()?->getAuthIdentifier()));
+        RateLimiter::for('payment-webhooks', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.payment_webhooks'))->by('payment-webhooks:'.$request->ip()));
 
         Queue::createPayloadUsing(fn () => ['request_id' => app(CorrelationContext::class)->id()]);
         Queue::before(function (JobProcessing $event): void {

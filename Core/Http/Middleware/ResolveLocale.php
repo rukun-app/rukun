@@ -25,8 +25,10 @@ class ResolveLocale
         $userLocale = null;
         try {
             $configured = $this->settings->get('app.locale');
+            date_default_timezone_set($this->settings->get('app.timezone'));
         } catch (Throwable) {
             $configured = config('app.locale');
+            date_default_timezone_set(config('app.timezone'));
         }
         $locale = $requested ?: (in_array($userLocale, $supported, true) ? $userLocale : null) ?: (in_array($configured, $supported, true) ? $configured : config('app.fallback_locale'));
 

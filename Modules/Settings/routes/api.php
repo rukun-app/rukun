@@ -9,5 +9,6 @@ Route::middleware('api')->group(function (): void {
         Route::get('/', [SettingsController::class, 'index'])->middleware('permission:settings.view')->name('api.settings.index');
         Route::get('/metadata', [SettingsController::class, 'metadata'])->middleware('permission:settings.view')->name('api.settings.metadata');
         Route::patch('/', [SettingsController::class, 'update'])->middleware(['permission:settings.update', 'throttle:admin-sensitive'])->name('api.settings.update');
+        Route::delete('/{key}', [SettingsController::class, 'reset'])->where('key', '.*')->middleware(['permission:settings.update', 'throttle:admin-sensitive'])->name('api.settings.reset');
     });
 });

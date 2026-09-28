@@ -14,6 +14,7 @@ class OpenApiDocument
         'createRole', 'updateRole', 'deleteRole', 'createUser', 'updateUserStatus',
         'syncUserRoles', 'updateSettings',
         'receiveMidtransNotification',
+        'resetSetting',
     ];
 
     public function json(): string

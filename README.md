@@ -46,10 +46,11 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 | V2.6: API Reliability & Protection | Selesai | Idempotency key untuk operasi create dan named Redis rate limiter per kelompok endpoint |
 | V2.7: Automated Quality Gate | Selesai | GitHub Actions dengan PHP 8.5, PostgreSQL 16, Redis 7, Pest, Pint, OpenAPI, dan pemeriksaan secret |
 | V2.8C: Payment Foundation | Selesai | Provider contract, transaksi pembayaran generik, Midtrans Snap, callback terverifikasi, audit, dan realtime event |
+| V2.9: Runtime Settings Governance | Selesai | Database override, fallback environment, default kode, metadata group/type/source, dan reset override |
 | Roadmap V2 lanjutan | Direncanakan | Webhook umum dan import/export foundation; lihat [`plan-v2.md`](plan-v2.md) |
 | Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
 
-Verifikasi terakhir: **83 test lulus dengan 427 assertions**.
+Verifikasi terakhir: **85 test lulus dengan 451 assertions**.
 
 ## Teknologi dan struktur
 
@@ -285,8 +286,27 @@ Definisi settings berada di `Modules/Settings/SettingsRegistry.php`. Nilai datab
 | `realtime.event_retention_days` | integer | `7` | Tidak | Retensi durable event untuk polling |
 | `ops.failed_job_retention_hours` | integer | `168` | Tidak | Retensi failed queue job untuk inspeksi |
 | `api.idempotency_ttl_hours` | integer | `24` | Tidak | Masa simpan hasil operasi idempotent, 1-168 jam |
+| `rate_limit.*` | integer | Per action | Tidak | Batas request per menit untuk delapan kelompok endpoint |
+| `payments.midtrans_enabled` | boolean | `false` | Tidak | Mengaktifkan pembuatan checkout jika credential tersedia |
+| `payments.midtrans_timeout` | integer | `10` | Tidak | Timeout API Midtrans dalam detik |
 
-Metadata settings menyediakan key, value, type, default, rules, public, editable, dan description. Rahasia tetap disimpan melalui environment.
+Metadata settings menyediakan key, group, value, source, fallback value, type, default, rules, public, editable, dan description. Rahasia tetap disimpan melalui environment.
+
+Resolusi setiap runtime setting memakai urutan berikut:
+
+1. Override pada tabel `rcore_settings`.
+2. Nilai `.env` yang dibaca melalui `config/runtime-settings.php`.
+3. Default kode pada `SettingsRegistry`.
+
+`GET /api/settings/metadata` mengembalikan `group`, `type`, `value`, `source`, `fallback_value`, default, rules, visibility, dan description. Nilai `group` dapat langsung dipakai frontend sebagai tab: `application`, `authentication`, `files`, `realtime`, `operations`, `api`, `rate_limits`, dan `payments`.
+
+`DELETE /api/settings/{key}` menghapus override database dan mengaktifkan kembali fallback environment/default. Perubahan dan reset dicatat pada audit. Kolom `type` dan `group` di database merupakan snapshot untuk administrasi; `SettingsRegistry` tetap menjadi schema kanonik ketika setting ditambah manual.
+
+Setting runtime yang tersedia juga mencakup seluruh `rate_limit.*`, `payments.midtrans_enabled`, dan `payments.midtrans_timeout`. Credential dan konfigurasi infrastruktur berikut tetap hanya boleh berasal dari environment:
+
+- `APP_KEY`, debug, environment, logging, Swagger, dan Telescope.
+- Host, port, database, Redis, cache, queue, session, mail, filesystem, MinIO, dan Reverb.
+- Midtrans server/client key, merchant ID, production mode, serta endpoint override.
 
 Audit merekam authentication dan perubahan administratif seperti settings, status dan role user, role RBAC, pembuatan user, serta pencabutan token. Password, plain text token, reset token, dan credential tidak disimpan pada metadata audit.
 

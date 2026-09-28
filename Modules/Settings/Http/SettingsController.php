@@ -6,6 +6,7 @@ use Core\Audit\Audit;
 use Core\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Modules\Settings\Settings;
@@ -29,7 +30,9 @@ class SettingsController
             fn (array $definition, string $key): array => [
                 'key' => $key,
                 'value' => $settings->get($key),
-                ...$definition,
+                'source' => $settings->source($key),
+                ...Arr::except($definition, ['fallback']),
+                'fallback_value' => config($definition['fallback']) ?? $definition['default'],
                 'description' => __($definition['description']),
             ]
         )->values());
@@ -63,5 +66,19 @@ class SettingsController
         Audit::record('settings.updated', metadata: ['before' => $before, 'after' => $validated]);
 
         return ApiResponse::success($settings->all());
+    }
+
+    public function reset(Request $request, string $key, Settings $settings): JsonResponse
+    {
+        abort_unless(array_key_exists($key, SettingsRegistry::DEFINITIONS), 404);
+        $before = $settings->get($key);
+        $settings->forget($key);
+        Audit::record('settings.reset', metadata: ['key' => $key, 'before' => $before, 'after' => $settings->get($key)]);
+
+        return ApiResponse::success([
+            'key' => $key,
+            'value' => $settings->get($key),
+            'source' => $settings->source($key),
+        ]);
     }
 }
