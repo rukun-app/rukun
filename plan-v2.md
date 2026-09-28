@@ -33,8 +33,8 @@ Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis be
 | V2.4 | Realtime & Polling | Selesai | Durable event stream, WebSocket adapter, polling cursor, dan recovery |
 | V2.5 | Operational Reliability | Selesai | Request ID, structured logging, queue failure policy, dan operational commands |
 | V2.6 | API Reliability & Protection | Selesai | Idempotency dan named rate limiters |
-| V2.7 | Automated Quality Gate | Berikutnya | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
-| V2.8 | Integration Foundation | Direncanakan | Webhook serta import/export foundation |
+| V2.7 | Automated Quality Gate | Selesai | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
+| V2.8 | Integration Foundation | Berikutnya | Webhook serta import/export foundation |
 
 Setiap fase harus lulus test dan dokumentasinya sendiri sebelum fase berikutnya dimulai.
 

@@ -1,0 +1,115 @@
+name: Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: PHP 8.5 / PostgreSQL 16 / Redis 7
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: laravel_core_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d laravel_core_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      APP_DEBUG: 'false'
+      APP_URL: http://localhost
+      API_DOCS_ENABLED: true
+      DB_CONNECTION: core
+      CORE_DB_PREFIX: rcore_
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: laravel_core_test
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      REDIS_PREFIX: core-r-ci-${{ github.run_id }}-
+      REDIS_CACHE_DB: 13
+      REDIS_QUEUE_DB: 14
+      REDIS_SESSION_DB: 15
+      CACHE_STORE: redis
+      CACHE_LIMITER: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      SESSION_CONNECTION: session
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+      BROADCAST_CONNECTION: 'null'
+      TELESCOPE_ENABLED: 'false'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject tracked secrets and local environment files
+        run: bash scripts/ci/check-secrets.sh
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pcntl, pdo_pgsql, redis, sodium, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-php85-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php85-
+
+      - name: Install locked dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Prepare disposable database
+        run: |
+          php artisan config:clear
+          php artisan migrate --force
+
+      - name: Run Pest
+        run: php artisan test
+
+      - name: Check code style
+        run: vendor/bin/pint --test
+
+      - name: Generate and validate OpenAPI
+        run: |
+          php artisan api-docs:generate --output=storage/framework/ci-openapi.json
+          php scripts/ci/validate-openapi.php storage/framework/ci-openapi.json

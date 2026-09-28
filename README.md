@@ -21,6 +21,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 - [Realtime dan polling](#realtime-dan-polling)
 - [Operational reliability](#operational-reliability)
 - [API reliability dan protection](#api-reliability-dan-protection)
+- [Automated quality gate](#automated-quality-gate)
 - [Module system](#module-system)
 - [Testing](#testing)
 - [Checklist pengembangan](#checklist-pengembangan)
@@ -42,7 +43,8 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 | V2.4: Realtime dan Polling | Selesai | Durable user events, opaque cursor, private Reverb channel, notification event, retention, dan fallback polling |
 | V2.5: Operational Reliability | Selesai | Request ID, correlation context, JSON logging, redaction, job policy, failed job summary, dan pruning |
 | V2.6: API Reliability & Protection | Selesai | Idempotency key untuk operasi create dan named Redis rate limiter per kelompok endpoint |
-| Roadmap V2 lanjutan | Direncanakan | CI dan integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
+| V2.7: Automated Quality Gate | Selesai | GitHub Actions dengan PHP 8.5, PostgreSQL 16, Redis 7, Pest, Pint, OpenAPI, dan pemeriksaan secret |
+| Roadmap V2 lanjutan | Direncanakan | Integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
 | Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
 
 Verifikasi terakhir: **78 test lulus dengan 399 assertions**.
@@ -475,6 +477,28 @@ Rate limiter memakai Redis dan dipisahkan menurut tujuan endpoint:
 | Administrasi sensitif | 30 per user | Mutasi role, user, dan settings |
 
 Nilai tersebut dapat diubah melalui variable `RATE_LIMIT_*` di environment. Setelah perubahan, muat ulang configuration cache dan worker. Ketika batas terlampaui API mengembalikan HTTP `429`, code `request.rate_limited`, serta header `Retry-After`, `X-RateLimit-Limit`, dan `X-RateLimit-Remaining`. Client menunggu sekurangnya selama `Retry-After` sebelum mencoba kembali.
+
+## Automated quality gate
+
+Workflow [`.github/workflows/quality.yml`](.github/workflows/quality.yml) berjalan pada pull request dan push ke `main`. Runner membuat PostgreSQL 16 dan Redis 7 disposable, memasang dependency sesuai `composer.lock`, lalu menjalankan gate berikut secara berurutan:
+
+1. Menolak file `.env` lokal, private key, atau pola AWS access key yang terlacak Git.
+2. Menjalankan migration pada database `laravel_core_test` milik runner.
+3. Menjalankan seluruh Pest test.
+4. Menjalankan Laravel Pint dalam mode pemeriksaan.
+5. Menghasilkan OpenAPI JSON dan memvalidasi versi, metadata, operation ID unik, response, serta referensi schema.
+
+Workflow memakai credential database sementara yang hanya berlaku di service runner. Workflow tidak mengakses PostgreSQL, Redis, MinIO, MailDev, atau Docker network development.
+
+Sebelum merge, branch protection sebaiknya mewajibkan check **PHP 8.5 / PostgreSQL 16 / Redis 7** dari workflow **Quality Gate**. Reproduksi gate aplikasi secara lokal:
+
+```sh
+bash scripts/ci/check-secrets.sh
+docker exec -w /var/www/p85/core-r dev-php85 php artisan test
+docker exec -w /var/www/p85/core-r dev-php85 vendor/bin/pint --test
+docker exec -w /var/www/p85/core-r dev-php85 php artisan api-docs:generate --output=storage/framework/ci-openapi.json
+docker exec -w /var/www/p85/core-r dev-php85 php scripts/ci/validate-openapi.php storage/framework/ci-openapi.json
+```
 
 ## Module system
 
