@@ -12,7 +12,7 @@ Fondasi domain-neutral utama dalam roadmap ini:
 4. **Realtime & Polling Foundation** agar modul dapat menerbitkan event yang diterima melalui WebSocket atau disinkronkan ulang melalui polling cursor.
 5. **Payment Foundation** untuk checkout generik, Midtrans Snap, webhook tervalidasi, redirect pengguna, audit, dan event status tanpa memasukkan lifecycle order bisnis ke Core.
 
-> **Status per 28 September 2026:** V2.1–V2.7, V2.8C, dan V2.9 selesai. V2.8A Webhook Umum dan V2.8B Import/Export tetap backlog opsional. Boilerplate sudah dapat dijadikan baseline proyek bisnis baru.
+> **Status per 28 September 2026:** V2.1–V2.7, V2.8B, V2.8C, dan V2.9 selesai. V2.8A Webhook Umum tetap backlog opsional. Boilerplate sudah dapat dijadikan baseline proyek bisnis baru.
 
 Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis berikutnya menggunakan kontrak dan service yang disediakan roadmap V2 tanpa bergantung langsung pada MinIO, SMTP provider, Reverb, atau struktur internal notifikasi.
 
@@ -37,7 +37,7 @@ Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis be
 | V2.5 | Operational Reliability | Selesai | Request ID, structured logging, queue failure policy, dan operational commands |
 | V2.6 | API Reliability & Protection | Selesai | Idempotency dan named rate limiters |
 | V2.7 | Automated Quality Gate | Selesai | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
-| V2.8 | Integration Foundation | Sebagian selesai | V2.8C Payment selesai; V2.8A webhook umum dan V2.8B import/export tetap backlog |
+| V2.8 | Integration Foundation | Sebagian selesai | V2.8B Import/Export dan V2.8C Payment selesai; V2.8A webhook umum tetap backlog |
 | V2.9 | Runtime Settings Governance | Selesai | Database override, environment fallback, grouping metadata, dan reset API |
 
 Setiap fase harus lulus test dan dokumentasinya sendiri sebelum fase berikutnya dimulai.
@@ -703,6 +703,10 @@ V2.8 dibagi menjadi tiga submodule yang dapat dikerjakan terpisah.
 - Import memiliki validation report dan batas jumlah error yang disimpan.
 - Progress menerbitkan durable realtime event sehingga dapat diterima lewat WebSocket atau polling.
 - Format/domain importer dan exporter dibuat oleh modul bisnis; core hanya menyediakan orchestration.
+- Implementasi memakai CSV dan XLSX streaming, handler registry, queue `low`, UUID publik, cursor listing, ownership, RBAC, dan idempotency wajib.
+- Status, progress, hasil, maksimal 100 detail error per baris, cancellation, audit, dan event `data_transfer.updated` tersedia melalui API.
+- File input/output memakai File Management dan tetap private. Cleanup terjadwal menghapus transfer terminal serta output export setelah retention, tanpa menghapus file input user.
+- Handler referensi `identity.users` membuktikan export dan import/update CSV/XLSX yang idempotent; super administrator dilindungi dari perubahan melalui import.
 
 #### V2.8C — Payment Foundation
 
@@ -809,6 +813,18 @@ Acceptance minimum V2.9:
 - [x] Payment status menerbitkan audit dan durable realtime event.
 - [x] Credential tetap environment-only dan kontrak API terdokumentasi di OpenAPI.
 
+### Import dan Export Foundation
+
+- [x] Handler registry memungkinkan modul menambah tipe tanpa mengubah orchestration Core.
+- [x] Import dan export CSV berjalan asynchronous pada queue `low`.
+- [x] File input/output private menggunakan File Management.
+- [x] API menyediakan type metadata, cursor listing, create, progress/detail, dan cancellation.
+- [x] `Idempotency-Key`, RBAC, ownership, audit, dan stable API response diterapkan.
+- [x] Error import dicatat per baris secara terbatas dan jumlah sukses/gagal tersedia.
+- [x] Progress akhir diterbitkan sebagai durable realtime event `data_transfer.updated`.
+- [x] Cleanup retention menghapus transfer terminal dan output export tanpa menghapus input user.
+- [x] OpenAPI, test integration, dan handler referensi `identity.users` tersedia.
+
 ## 23. Keputusan yang dikunci untuk implementasi
 
 | Topik | Keputusan |
@@ -885,5 +901,4 @@ Baseline siap dipakai untuk proyek baru setelah langkah berikut dipenuhi pada en
 Backlog Core yang tidak menghalangi proyek baru:
 
 - V2.8A webhook keluar generik dengan signature, delivery log, retry, dan proteksi SSRF.
-- V2.8B orchestration import/export async.
 - Provider pembayaran tambahan, refund API, settlement/reconciliation terjadwal, dan fitur bisnis payment ditambahkan ketika domain pertama membutuhkannya.

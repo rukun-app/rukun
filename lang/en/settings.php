@@ -12,6 +12,7 @@ return [
     'allowed_mime_types' => 'MIME types allowed for file uploads.',
     'event_retention_days' => 'Number of days durable realtime events remain available for polling.',
     'failed_job_retention_hours' => 'Number of hours failed queue jobs remain available for inspection.',
+    'data_transfer_retention_days' => 'Number of days completed data transfers and generated exports remain available.',
     'idempotency_ttl_hours' => 'Number of hours successful idempotent responses remain replayable.',
     'rate_limit_auth_register' => 'Maximum public registration requests per IP per minute.',
     'rate_limit_auth_login' => 'Maximum login requests per IP and email combination per minute.',

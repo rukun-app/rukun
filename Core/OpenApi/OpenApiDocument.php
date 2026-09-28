@@ -14,6 +14,7 @@ class OpenApiDocument
         'createRole', 'updateRole', 'deleteRole', 'createUser', 'updateUserStatus',
         'syncUserRoles', 'updateSettings',
         'createPayment', 'receiveMidtransNotification',
+        'createDataExport', 'createDataImport', 'cancelDataTransfer',
         'resetSetting',
     ];
 
@@ -35,9 +36,9 @@ class OpenApiDocument
 
         $document = json_decode($openApi->toJson(), true, flags: JSON_THROW_ON_ERROR);
 
-        foreach (['/api/files', '/api/users', '/api/payments'] as $path) {
+        foreach (['/api/files' => '201', '/api/users' => '201', '/api/payments' => '201', '/api/data-transfers/exports' => '202', '/api/data-transfers/imports' => '202'] as $path => $successStatus) {
             $operation = &$document['paths'][$path]['post'];
-            $required = $path === '/api/payments';
+            $required = in_array($path, ['/api/payments', '/api/data-transfers/exports', '/api/data-transfers/imports'], true);
             $operation['parameters'][] = [
                 'name' => 'Idempotency-Key',
                 'in' => 'header',
@@ -46,7 +47,7 @@ class OpenApiDocument
                 'schema' => ['type' => 'string', 'minLength' => 8, 'maxLength' => 128, 'pattern' => '^[A-Za-z0-9._:-]+$'],
                 'example' => 'client-operation-0199a4e7',
             ];
-            $operation['responses']['201']['headers']['Idempotency-Replayed'] = [
+            $operation['responses'][$successStatus]['headers']['Idempotency-Replayed'] = [
                 'description' => 'false for the original execution and true when a cached response is replayed.',
                 'schema' => ['type' => 'boolean'],
             ];

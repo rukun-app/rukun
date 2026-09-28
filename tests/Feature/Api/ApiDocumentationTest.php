@@ -24,6 +24,8 @@ it('serves Swagger UI and a valid OpenAPI document', function () {
             '/api/notifications', '/api/notifications/unread-count', '/api/notifications/{notification}',
             '/api/notifications/{notification}/read', '/api/notifications/read-all', '/api/notification-preferences',
             '/api/payments', '/api/payments/{payment}', '/api/payments/webhooks/midtrans',
+            '/api/data-transfers', '/api/data-transfers/types', '/api/data-transfers/exports', '/api/data-transfers/imports',
+            '/api/data-transfers/{dataTransfer}', '/api/data-transfers/{dataTransfer}/cancel',
         ])
         ->and($document['paths']['/api/auth/login']['post'])->toHaveKey('requestBody')
         ->and($document['paths']['/api/auth/login']['post']['responses']['200']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/LoginSuccessResponse')
@@ -101,6 +103,14 @@ it('documents idempotency and named rate limit contracts', function () {
     expect($paymentIdempotency['required'])->toBeTrue()
         ->and($paymentOperation['responses']['201']['headers'])->toHaveKey('Idempotency-Replayed')
         ->and($paymentOperation['responses'])->toHaveKeys(['409', '429']);
+
+    foreach (['/api/data-transfers/exports', '/api/data-transfers/imports'] as $path) {
+        $operation = $document['paths'][$path]['post'];
+        $parameter = collect($operation['parameters'])->firstWhere('name', 'Idempotency-Key');
+        expect($parameter['required'])->toBeTrue()
+            ->and($operation['responses']['202']['headers'])->toHaveKey('Idempotency-Replayed')
+            ->and($operation['responses'])->toHaveKeys(['409', '429']);
+    }
 
     foreach ([['/api/auth/login', 'post'], ['/api/events', 'get'], ['/api/settings', 'patch']] as [$path, $method]) {
         $response = $document['paths'][$path][$method]['responses']['429'];

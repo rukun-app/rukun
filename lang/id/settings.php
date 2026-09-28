@@ -12,6 +12,7 @@ return [
     'allowed_mime_types' => 'Daftar MIME type yang diizinkan untuk upload.',
     'event_retention_days' => 'Jumlah hari event realtime disimpan untuk polling.',
     'failed_job_retention_hours' => 'Jumlah jam failed job disimpan untuk pemeriksaan operasional.',
+    'data_transfer_retention_days' => 'Jumlah hari transfer data selesai dan file export disimpan.',
     'idempotency_ttl_hours' => 'Jumlah jam response idempotent yang berhasil dapat diputar ulang.',
     'rate_limit_auth_register' => 'Batas registrasi publik per IP per menit.',
     'rate_limit_auth_login' => 'Batas login per kombinasi IP dan email per menit.',
