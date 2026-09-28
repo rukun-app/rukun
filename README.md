@@ -59,7 +59,77 @@ Verifikasi terakhir: **90 test lulus dengan 490 assertions** dan Laravel Pint lu
 
 Gunakan repository ini sebagai baseline sebelum menambahkan modul bisnis. Buat repository atau working copy baru, kemudian ubah identitas dan isolasi resource proyek sebelum migration pertama dijalankan.
 
-### 1. Ganti identitas proyek
+### 1. Buat repository GitHub baru
+
+Pastikan versi boilerplate yang ingin dipakai sudah di-commit dan tersedia pada branch atau tag Core R. Buat repository tujuan dalam keadaan kosong di GitHub tanpa README, `.gitignore`, atau license tambahan.
+
+#### Pilihan A — clone dengan history Core R
+
+Pilihan ini direkomendasikan jika proyek baru ingin tetap dapat mengambil perbaikan boilerplate dari Core R. Jalankan perintah dari direktori induk, bukan dari working copy Core R yang sedang dikembangkan:
+
+```sh
+cd /path/ke/direktori-project
+git clone https://github.com/RezaRiyaldi/core-r.git nama-project-baru
+cd nama-project-baru
+
+# Simpan Core R sebagai upstream dan cegah push tidak sengaja ke sana.
+git remote rename origin upstream
+git remote set-url --push upstream no_push
+
+# Hubungkan repository GitHub kosong milik proyek baru.
+git remote add origin git@github.com:YOUR_GITHUB_USER/nama-project-baru.git
+git remote -v
+git push -u origin main
+```
+
+| Remote | Fungsi |
+|---|---|
+| `origin` | Repository proyek baru dan tujuan push sehari-hari |
+| `upstream` | Repository Core R yang hanya dipakai untuk mengambil pembaruan boilerplate |
+
+Untuk mengambil pembaruan Core R kemudian hari:
+
+```sh
+git fetch upstream
+git log --oneline main..upstream/main
+git merge upstream/main
+```
+
+Lakukan merge pada branch khusus. Review migration, config, seeder, dan conflict dengan modul bisnis sebelum menggabungkannya ke `main`.
+
+#### Pilihan B — proyek dengan history Git baru
+
+Gunakan pilihan ini jika proyek hanya mengambil snapshot Core R dan tidak perlu mempertahankan commit history boilerplate:
+
+```sh
+cd /path/ke/direktori-project
+git clone --depth 1 https://github.com/RezaRiyaldi/core-r.git nama-project-baru
+cd nama-project-baru
+
+# Aman hanya karena dijalankan pada clone baru.
+rm -rf .git
+git init -b main
+git add .
+git commit -m "chore: initialize project from Core R boilerplate"
+git remote add origin git@github.com:YOUR_GITHUB_USER/nama-project-baru.git
+git push -u origin main
+```
+
+Setelah `.git` dihapus, proyek tidak memiliki hubungan Git dengan Core R. Pembaruan boilerplate berikutnya perlu dipindahkan manual atau melalui patch.
+
+#### Pilihan C — GitHub Template Repository
+
+Jika opsi **Template repository** sudah diaktifkan pada pengaturan GitHub Core R, klik **Use this template → Create a new repository**. GitHub membuat repository baru tanpa menjadikannya fork. Clone repository baru tersebut, lalu lanjutkan penggantian identitas di bawah.
+
+Jangan menjalankan perubahan remote atau `rm -rf .git` di direktori Core R asli. Selalu pastikan lokasi dan remote sebelum push:
+
+```sh
+pwd
+git remote -v
+git status
+```
+
+### 2. Ganti identitas proyek
 
 | Bagian | Contoh Core R | Nilai proyek baru |
 |---|---|---|
@@ -82,7 +152,7 @@ rg -n "Core R|CoreR|core-r|laravel_core|rcore_" --glob '!vendor/**'
 
 Pertahankan prefix tabel core untuk Identity, RBAC, Settings, Audit, Files, Notifications, Realtime, dan Payments. Migration serta model modul bisnis memakai connection `pgsql` tanpa prefix core.
 
-### 2. Buat environment lokal
+### 3. Buat environment lokal
 
 ```sh
 cp .env.example .env
@@ -95,7 +165,7 @@ docker exec -w /var/www/p85/core-r dev-php85 php artisan key:generate --env=test
 
 Sesuaikan path `/var/www/p85/core-r` dengan mount proyek baru. Isi credential hanya di `.env` lokal. Buat database development, database testing, serta bucket object storage yang terpisah.
 
-### 3. Inisialisasi aplikasi
+### 4. Inisialisasi aplikasi
 
 ```sh
 docker exec -w /var/www/p85/core-r dev-php85 php artisan migrate
@@ -106,7 +176,7 @@ docker compose -f compose.jobs.yml up -d
 
 Aktifkan `compose.realtime.yml` hanya jika proyek memakai WebSocket. Polling durable tetap tersedia ketika Reverb dinonaktifkan.
 
-### 4. Gate sebelum modul bisnis
+### 5. Gate sebelum modul bisnis
 
 - `/api/health` menunjukkan PostgreSQL dan Redis `up`.
 - Swagger dapat dibuka dan login administrator berhasil.
@@ -114,8 +184,12 @@ Aktifkan `compose.realtime.yml` hanya jika proyek memakai WebSocket. Polling dur
 - Database dan indeks Redis testing berbeda dari development.
 - `php artisan test`, Pint, generator OpenAPI, dan pemeriksaan secret lulus.
 - Tidak ada credential, URL tunnel sementara, atau token administrator yang terlacak Git.
+- Remote `origin` mengarah ke repository proyek baru dan push branch `main` berhasil.
+- Workflow GitHub Actions **Quality Gate** lulus pada repository baru.
 
-### 5. Mulai modul bisnis
+Setelah push pertama, aktifkan branch protection untuk `main` dan wajibkan check **PHP 8.5 / PostgreSQL 16 / Redis 7**. Jika nama database, prefix tabel, atau prefix Redis testing diubah, selaraskan environment pada [workflow quality](.github/workflows/quality.yml) sebelum menjadikannya required check.
+
+### 6. Mulai modul bisnis
 
 ```sh
 docker exec -w /var/www/p85/core-r dev-php85 php artisan make:module Billing
