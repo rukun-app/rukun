@@ -2,6 +2,7 @@
 
 namespace Core\Audit;
 
+use Core\Support\CorrelationContext;
 use Illuminate\Database\Eloquent\Model;
 
 class Audit
@@ -13,7 +14,7 @@ class Audit
             'event' => $event,
             'subject_type' => $subject?->getMorphClass(),
             'subject_id' => $subject?->getKey(),
-            'metadata' => $metadata ?: null,
+            'metadata' => array_filter(['request_id' => app(CorrelationContext::class)->id(), ...$metadata], fn ($value) => $value !== null) ?: null,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
         ]);

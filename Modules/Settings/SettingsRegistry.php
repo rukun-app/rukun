@@ -15,5 +15,6 @@ class SettingsRegistry
         'files.max_upload_mb' => ['type' => 'integer', 'default' => 10, 'rules' => ['integer', 'min:1', 'max:100'], 'public' => false, 'editable' => true, 'description' => 'settings.max_upload_mb'],
         'files.allowed_mime_types' => ['type' => 'array', 'default' => ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain'], 'rules' => ['array', 'min:1', 'max:10'], 'public' => false, 'editable' => true, 'description' => 'settings.allowed_mime_types'],
         'realtime.event_retention_days' => ['type' => 'integer', 'default' => 7, 'rules' => ['integer', 'min:1', 'max:90'], 'public' => false, 'editable' => true, 'description' => 'settings.event_retention_days'],
+        'ops.failed_job_retention_hours' => ['type' => 'integer', 'default' => 168, 'rules' => ['integer', 'min:1', 'max:2160'], 'public' => false, 'editable' => true, 'description' => 'settings.failed_job_retention_hours'],
     ];
 }

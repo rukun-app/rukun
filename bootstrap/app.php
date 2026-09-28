@@ -1,6 +1,8 @@
 <?php
 
 use Core\Http\ApiResponse;
+use Core\Http\Middleware\AddRequestLogContext;
+use Core\Http\Middleware\AssignRequestId;
 use Core\Http\Middleware\EnsureUserIsActive;
 use Core\Http\Middleware\ResolveLocale;
 use Core\Http\Middleware\ResolveUserLocale;
@@ -25,7 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->api(prepend: [ResolveLocale::class]);
+        $middleware->api(prepend: [AssignRequestId::class, ResolveLocale::class]);
+        $middleware->api(append: [AddRequestLogContext::class]);
+        $middleware->appendToPriorityList(Authenticate::class, AddRequestLogContext::class);
         $middleware->appendToPriorityList(Authenticate::class, ResolveUserLocale::class);
         $middleware->alias(['active' => EnsureUserIsActive::class, 'locale' => ResolveUserLocale::class, 'permission' => PermissionMiddleware::class]);
         $middleware->redirectGuestsTo(fn (Request $request): ?string => $request->is('api/*') ? null : '/');

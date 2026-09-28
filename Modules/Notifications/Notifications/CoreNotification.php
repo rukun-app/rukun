@@ -2,6 +2,7 @@
 
 namespace Modules\Notifications\Notifications;
 
+use Core\Support\CorrelationContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -14,6 +15,10 @@ class CoreNotification extends Notification implements ShouldQueue
     use Queueable;
 
     public int $tries = 3;
+
+    public int $timeout = 60;
+
+    public int $maxExceptions = 3;
 
     /** @var array<int, int> */
     public array $backoff = [30, 120, 300];
@@ -48,7 +53,7 @@ class CoreNotification extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
-        return ['schema_version' => 1, 'category' => $this->category, 'title_key' => $this->titleKey, 'message_key' => $this->messageKey, 'parameters' => $this->parameters, 'action' => $this->action, 'context' => $this->context];
+        return ['schema_version' => 1, 'category' => $this->category, 'title_key' => $this->titleKey, 'message_key' => $this->messageKey, 'parameters' => $this->parameters, 'action' => $this->action, 'context' => ['request_id' => app(CorrelationContext::class)->id(), ...$this->context]];
     }
 
     public function toMail(object $notifiable): MailMessage

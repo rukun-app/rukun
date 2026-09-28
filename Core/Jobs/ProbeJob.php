@@ -13,6 +13,13 @@ class ProbeJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $tries = 3;
+
+    public int $timeout = 30;
+
+    /** @var array<int, int> */
+    public array $backoff = [5, 15, 30];
+
     public function __construct(public string $key) {}
 
     public function handle(): void

@@ -3,8 +3,10 @@
 namespace Core\Providers;
 
 use Core\Console\BootstrapAdminCommand;
+use Core\Console\FailedJobsSummaryCommand;
 use Core\Console\GenerateApiDocsCommand;
 use Core\Console\MakeModuleCommand;
+use Core\Console\PruneFailedJobsCommand;
 use Illuminate\Support\ServiceProvider;
 
 class ModuleServiceProvider extends ServiceProvider
@@ -16,6 +18,8 @@ class ModuleServiceProvider extends ServiceProvider
                 BootstrapAdminCommand::class,
                 GenerateApiDocsCommand::class,
                 MakeModuleCommand::class,
+                FailedJobsSummaryCommand::class,
+                PruneFailedJobsCommand::class,
             ]);
         }
     }

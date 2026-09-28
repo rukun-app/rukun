@@ -11,4 +11,5 @@ return [
     'max_upload_mb' => 'Maximum file upload size in megabytes.',
     'allowed_mime_types' => 'MIME types allowed for file uploads.',
     'event_retention_days' => 'Number of days durable realtime events remain available for polling.',
+    'failed_job_retention_hours' => 'Number of hours failed queue jobs remain available for inspection.',
 ];

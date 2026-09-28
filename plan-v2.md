@@ -31,8 +31,8 @@ Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis be
 | V2.2 | Multilingual Foundation | Selesai | English/Indonesian locale resolution, translated API, validation, dan notification locale |
 | V2.3 | Notification Foundation | Selesai | Inbox, email, preferences, queue delivery, dan notification API |
 | V2.4 | Realtime & Polling | Selesai | Durable event stream, WebSocket adapter, polling cursor, dan recovery |
-| V2.5 | Operational Reliability | Berikutnya | Request ID, structured logging, queue failure policy, dan operational commands |
-| V2.6 | API Reliability & Protection | Direncanakan | Idempotency dan named rate limiters |
+| V2.5 | Operational Reliability | Selesai | Request ID, structured logging, queue failure policy, dan operational commands |
+| V2.6 | API Reliability & Protection | Berikutnya | Idempotency dan named rate limiters |
 | V2.7 | Automated Quality Gate | Direncanakan | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
 | V2.8 | Integration Foundation | Direncanakan | Webhook serta import/export foundation |
 

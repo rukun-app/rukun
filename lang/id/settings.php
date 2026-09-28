@@ -11,4 +11,5 @@ return [
     'max_upload_mb' => 'Batas ukuran upload file dalam megabita.',
     'allowed_mime_types' => 'Daftar MIME type yang diizinkan untuk upload.',
     'event_retention_days' => 'Jumlah hari event realtime disimpan untuk polling.',
+    'failed_job_retention_hours' => 'Jumlah jam failed job disimpan untuk pemeriksaan operasional.',
 ];

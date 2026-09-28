@@ -3,6 +3,7 @@
 namespace Modules\Realtime\Services;
 
 use App\Models\User;
+use Core\Support\CorrelationContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Modules\Realtime\Contracts\RealtimePublisher;
@@ -18,6 +19,7 @@ class DatabaseRealtimePublisher implements RealtimePublisher
     public function publish(User $user, string $type, array $payload, ?Model $resource = null): void
     {
         EventRegistry::validate($type);
+        $payload = ['request_id' => app(CorrelationContext::class)->id(), ...$payload];
 
         $store = function () use ($user, $type, $payload, $resource): void {
             $event = UserEvent::query()->create([

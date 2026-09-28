@@ -19,6 +19,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 - [Swagger dan Telescope](#swagger-dan-telescope)
 - [Queue dan scheduler](#queue-dan-scheduler)
 - [Realtime dan polling](#realtime-dan-polling)
+- [Operational reliability](#operational-reliability)
 - [Module system](#module-system)
 - [Testing](#testing)
 - [Checklist pengembangan](#checklist-pengembangan)
@@ -38,10 +39,11 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 | V2.2: Multilingual | Selesai | Locale `en`/`id`, `Accept-Language`, preferensi user, translated validation/error, stable error code, dan localized settings metadata |
 | V2.3: Notification | Selesai | Localized inbox, email channel, preferences, read/unread lifecycle, cursor pagination, queue priority, dan MailDev verification |
 | V2.4: Realtime dan Polling | Selesai | Durable user events, opaque cursor, private Reverb channel, notification event, retention, dan fallback polling |
-| Roadmap V2 lanjutan | Direncanakan | Operational reliability, API reliability, CI, dan integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
+| V2.5: Operational Reliability | Selesai | Request ID, correlation context, JSON logging, redaction, job policy, failed job summary, dan pruning |
+| Roadmap V2 lanjutan | Direncanakan | API reliability, CI, dan integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
 | Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
 
-Verifikasi terakhir: **67 test lulus dengan 324 assertions**.
+Verifikasi terakhir: **72 test lulus dengan 345 assertions**.
 
 ## Teknologi dan struktur
 
@@ -149,6 +151,7 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 | `BROADCAST_CONNECTION` | Transport realtime | `null` atau `reverb` |
 | `REVERB_APP_*` | Credential aplikasi Reverb | Nilai unik dari environment lokal |
 | `REVERB_ALLOWED_ORIGINS` | Origin WebSocket yang diizinkan | Daftar host dipisahkan koma |
+| `LOG_CHANNEL` | Format log utama | `stack` untuk local, `json` untuk structured stderr |
 
 | Resource | Development | Testing |
 |---|---|---|
@@ -268,6 +271,7 @@ Definisi settings berada di `Modules/Settings/SettingsRegistry.php`. Nilai datab
 | `files.max_upload_mb` | integer | `10` | Tidak | Batas ukuran upload |
 | `files.allowed_mime_types` | array | PDF, JPEG, PNG, WebP, text | Tidak | MIME type yang diizinkan |
 | `realtime.event_retention_days` | integer | `7` | Tidak | Retensi durable event untuk polling |
+| `ops.failed_job_retention_hours` | integer | `168` | Tidak | Retensi failed queue job untuk inspeksi |
 
 Metadata settings menyediakan key, value, type, default, rules, public, editable, dan description. Rahasia tetap disimpan melalui environment.
 
@@ -395,6 +399,7 @@ Telescope merekam request/response, query, cache, Redis, job, mail, notification
 | Harian | `sanctum:prune-expired --hours=24` | Bersihkan token expired |
 | Harian 02:00 | `telescope:prune --hours=48` | Bersihkan data Telescope lama |
 | Harian 02:15 | `realtime:prune-events` | Bersihkan durable event yang melewati retensi |
+| Harian 02:30 | `core:prune-failed-jobs` | Bersihkan failed job sesuai setting retensi |
 
 Service menggunakan PHP 8.5 dan `docker-network`; layanan infrastruktur bersama tidak diubah.
 
@@ -413,6 +418,31 @@ Channel user adalah `private-users.{userId}` dan event broadcast bernama `.core.
 Cursor bersifat opaque. HTTP `409` dengan code `realtime.cursor_expired` meminta client memuat ulang resource canonical dan mengambil cursor baru. Retensi dikendalikan setting `realtime.event_retention_days`.
 
 Untuk menambah tipe event, daftarkan key beserta versi schema di `Modules/Realtime/EventRegistry.php`, lalu gunakan kontrak `RealtimePublisher`. Publisher menulis event setelah transaksi database commit. Jangan memasukkan token, credential, path storage, atau model serialization mentah ke payload.
+
+## Operational reliability
+
+Setiap response API memiliki header `X-Request-ID`. Client boleh mengirim UUID melalui header yang sama; server akan meneruskannya. Nilai tidak valid diganti UUID baru. Request ID ikut masuk ke log context, audit metadata, queue payload, notification context, dan realtime event payload.
+
+Gunakan `LOG_CHANNEL=json` pada deployment yang mengirim log melalui stdout/stderr. Context terstruktur memuat request ID, actor ID, route, module, job ID, job type, dan queue bila tersedia. Field dengan nama yang mengandung password, token, secret, credential, cookie, authorization, atau access key disensor.
+
+Operasi failed job:
+
+```sh
+# Ringkasan aman tanpa payload dan exception trace
+php artisan queue:failed-summary
+
+# Daftar lengkap bawaan Laravel
+php artisan queue:failed
+
+# Retry atau hapus satu job
+php artisan queue:retry <uuid>
+php artisan queue:forget <uuid>
+
+# Prune memakai setting ops.failed_job_retention_hours
+php artisan core:prune-failed-jobs
+```
+
+Default retensi failed job adalah 168 jam. Payload dan exception trace hanya diperiksa oleh operator yang memiliki akses shell karena dapat mengandung data internal.
 
 ## Module system
 
