@@ -15,7 +15,7 @@ class EnsureUserIsActive
         if ($request->user()?->status !== UserStatus::Active) {
             $request->user()?->tokens()->delete();
 
-            return ApiResponse::error('Account is suspended.', 403);
+            return ApiResponse::error(__('api.auth.suspended'), 403, code: 'auth.suspended');
         }
 
         return $next($request);

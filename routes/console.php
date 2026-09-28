@@ -15,3 +15,4 @@ Artisan::command('core:heartbeat', function () {
 Schedule::command('core:heartbeat')->everyMinute();
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->withoutOverlapping();
 Schedule::command('telescope:prune --hours=48')->dailyAt('02:00')->withoutOverlapping();
+Schedule::command('realtime:prune-events')->dailyAt('02:15')->withoutOverlapping();

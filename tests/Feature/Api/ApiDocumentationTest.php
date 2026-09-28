@@ -10,11 +10,14 @@ it('serves Swagger UI and a valid OpenAPI document', function () {
 
     expect($document['openapi'])->toStartWith('3.1.')
         ->and($document['paths'])->toHaveKeys([
-            '/api/health', '/api/example', '/api/auth/register', '/api/auth/login', '/api/auth/me', '/api/auth/profile', '/api/auth/password',
+            '/api/health', '/api/locales', '/api/example', '/api/auth/register', '/api/auth/login', '/api/auth/me', '/api/auth/profile', '/api/auth/password',
             '/api/auth/logout', '/api/auth/logout-all', '/api/auth/email/resend', '/api/auth/email/verify/{id}/{hash}',
             '/api/auth/forgot-password', '/api/auth/reset-password', '/api/permissions', '/api/roles', '/api/roles/{role}',
             '/api/auth/tokens', '/api/auth/tokens/{token}', '/api/users', '/api/users/{user}', '/api/users/{user}/status',
             '/api/users/{user}/roles', '/api/settings/public', '/api/settings', '/api/settings/metadata', '/api/audit-events',
+            '/api/files', '/api/files/{file}', '/api/files/{file}/download',
+            '/api/notifications', '/api/notifications/unread-count', '/api/notifications/{notification}',
+            '/api/notifications/{notification}/read', '/api/notifications/read-all', '/api/notification-preferences',
         ])
         ->and($document['paths']['/api/auth/login']['post'])->toHaveKey('requestBody')
         ->and($document['paths']['/api/auth/login']['post']['responses']['200']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/LoginSuccessResponse')
@@ -45,4 +48,31 @@ it('generates a static OpenAPI document', function () {
 it('serves only approved local Swagger UI assets', function () {
     $this->get('/docs/api/assets/swagger-ui.css')->assertOk()->assertHeader('Content-Type', 'text/css; charset=UTF-8');
     $this->get('/docs/api/assets/composer.json')->assertNotFound();
+});
+
+it('documents a response body schema for every response before execution', function () {
+    $document = $this->getJson('/docs/api/openapi.json')->assertOk()->json();
+    $missing = [];
+
+    foreach ($document['paths'] as $path => $pathItem) {
+        foreach ($pathItem as $method => $operation) {
+            if (! is_array($operation) || ! isset($operation['responses'])) {
+                continue;
+            }
+
+            foreach ($operation['responses'] as $status => $response) {
+                foreach ($response['content'] ?? [] as $mediaType => $media) {
+                    if (! isset($media['schema']) && ! isset($media['example']) && ! isset($media['examples'])) {
+                        $missing[] = strtoupper($method).' '.$path.' '.$status.' '.$mediaType;
+                    }
+                }
+
+                if (($response['content'] ?? []) === []) {
+                    $missing[] = strtoupper($method).' '.$path.' '.$status.' no-content';
+                }
+            }
+        }
+    }
+
+    expect($missing)->toBe([]);
 });

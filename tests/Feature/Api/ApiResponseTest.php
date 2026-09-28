@@ -14,9 +14,9 @@ it('uses a consistent error response', function () {
 
 it('returns a clear unauthenticated API response', function () {
     $this->getJson('/api/auth/me')->assertUnauthorized()
-        ->assertExactJson(['success' => false, 'message' => 'Unauthenticated.', 'errors' => []]);
+        ->assertExactJson(['success' => false, 'code' => 'auth.unauthenticated', 'message' => 'Unauthenticated.', 'errors' => []]);
 
     $this->get('/api/auth/me')->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/json')
-        ->assertExactJson(['success' => false, 'message' => 'Unauthenticated.', 'errors' => []]);
+        ->assertExactJson(['success' => false, 'code' => 'auth.unauthenticated', 'message' => 'Unauthenticated.', 'errors' => []]);
 });

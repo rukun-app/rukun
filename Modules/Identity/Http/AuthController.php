@@ -13,20 +13,21 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Modules\Settings\Settings;
 
 class AuthController
 {
     public function register(Request $request, Settings $settings): JsonResponse
     {
-        abort_unless($settings->get('auth.registration_enabled'), 403, 'Registration is disabled.');
+        abort_unless($settings->get('auth.registration_enabled'), 403, __('api.auth.registration_disabled'));
         $data = $request->validate(['name' => ['required', 'string', 'max:100'], 'email' => ['required', 'email', 'max:255', 'unique:users,email'], 'password' => ['required', 'string', 'min:8', 'confirmed']]);
         $user = User::query()->create(['name' => $data['name'], 'email' => Str::lower($data['email']), 'password' => $data['password']]);
         $user->assignRole('user');
         $user->sendEmailVerificationNotification();
         Audit::record('auth.registered', $user);
 
-        return ApiResponse::success(['message' => 'Registration successful. Verify your email before login.'], 201);
+        return ApiResponse::success(['message' => __('api.auth.registered')], 201);
     }
 
     public function login(Request $request, Settings $settings): JsonResponse
@@ -37,7 +38,7 @@ class AuthController
         $maxAttempts = (int) $settings->get('auth.max_login_attempts');
 
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
-            return ApiResponse::error('Too many login attempts.', 429);
+            return ApiResponse::error(__('api.auth.too_many_attempts'), 429, code: 'auth.rate_limited');
         }
 
         $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
@@ -46,17 +47,17 @@ class AuthController
             RateLimiter::hit($key, 60);
             Audit::record('auth.login_failed', $user, ['email' => $email]);
 
-            return ApiResponse::error('Invalid credentials.', 422, ['email' => ['Invalid credentials.']]);
+            return ApiResponse::error(__('api.auth.invalid_credentials'), 422, ['email' => [__('api.auth.invalid_credentials')]], 'auth.invalid_credentials');
         }
 
         if ($user->status !== UserStatus::Active) {
             Audit::record('auth.login_blocked', $user);
 
-            return ApiResponse::error('Account is suspended.', 403);
+            return ApiResponse::error(__('api.auth.suspended'), 403, code: 'auth.suspended');
         }
 
         if ($settings->get('auth.email_verification_required') && ! $user->hasVerifiedEmail()) {
-            return ApiResponse::error('Email address is not verified.', 403);
+            return ApiResponse::error(__('api.auth.unverified'), 403, code: 'auth.email_unverified');
         }
 
         RateLimiter::clear($key);
@@ -75,7 +76,7 @@ class AuthController
 
     public function updateProfile(Request $request): JsonResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:100']]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:100'], 'locale' => ['sometimes', 'string', Rule::in(config('localization.supported'))]]);
         $request->user()->update($data);
         Audit::record('user.profile_updated', $request->user());
 
@@ -91,7 +92,7 @@ class AuthController
         $user->tokens()->when($currentTokenId, fn ($query) => $query->whereKeyNot($currentTokenId))->delete();
         Audit::record('auth.password_changed', $user);
 
-        return ApiResponse::success(['message' => 'Password changed. Other tokens were revoked.']);
+        return ApiResponse::success(['message' => __('api.auth.password_changed')]);
     }
 
     public function logout(Request $request): JsonResponse
@@ -99,7 +100,7 @@ class AuthController
         $request->user()->currentAccessToken()?->delete();
         Audit::record('auth.logout', $request->user());
 
-        return ApiResponse::success(['message' => 'Logged out.']);
+        return ApiResponse::success(['message' => __('api.auth.logged_out')]);
     }
 
     public function logoutAll(Request $request): JsonResponse
@@ -107,7 +108,7 @@ class AuthController
         $request->user()->tokens()->delete();
         Audit::record('auth.logout_all', $request->user());
 
-        return ApiResponse::success(['message' => 'All tokens revoked.']);
+        return ApiResponse::success(['message' => __('api.auth.tokens_revoked')]);
     }
 
     public function resendVerification(Request $request): JsonResponse
@@ -118,19 +119,19 @@ class AuthController
             $user->sendEmailVerificationNotification();
         }
 
-        return ApiResponse::success(['message' => 'If the account exists, a verification email has been sent.']);
+        return ApiResponse::success(['message' => __('api.auth.verification_sent')]);
     }
 
     public function verify(Request $request, int $id, string $hash): JsonResponse
     {
         $user = User::query()->findOrFail($id);
-        abort_unless(hash_equals($hash, sha1($user->getEmailForVerification())), 403, 'Invalid verification link.');
+        abort_unless(hash_equals($hash, sha1($user->getEmailForVerification())), 403, __('api.auth.invalid_verification'));
         if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
             Audit::record('auth.email_verified', $user);
         }
 
-        return ApiResponse::success(['message' => 'Email verified.']);
+        return ApiResponse::success(['message' => __('api.auth.verified')]);
     }
 
     public function forgotPassword(Request $request): JsonResponse
@@ -138,7 +139,7 @@ class AuthController
         $data = $request->validate(['email' => ['required', 'email']]);
         Password::sendResetLink(['email' => Str::lower($data['email'])]);
 
-        return ApiResponse::success(['message' => 'If the account exists, a reset link has been sent.']);
+        return ApiResponse::success(['message' => __('api.auth.reset_sent')]);
     }
 
     public function resetPassword(Request $request): JsonResponse
@@ -160,6 +161,6 @@ class AuthController
 
     private function userData(User $user): array
     {
-        return ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'status' => $user->status->value, 'email_verified_at' => $user->email_verified_at?->toISOString(), 'last_login_at' => $user->last_login_at?->toISOString(), 'roles' => $user->getRoleNames()->values(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()];
+        return ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'locale' => $user->locale, 'status' => $user->status->value, 'email_verified_at' => $user->email_verified_at?->toISOString(), 'last_login_at' => $user->last_login_at?->toISOString(), 'roles' => $user->getRoleNames()->values(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()];
     }
 }

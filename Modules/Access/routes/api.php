@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Access\Http\RoleController;
 use Modules\Access\Http\UserAccessController;
 
-Route::prefix('api')->middleware(['api', 'auth:sanctum', 'active'])->group(function (): void {
+Route::prefix('api')->middleware(['api', 'auth:sanctum', 'active', 'locale'])->group(function (): void {
     Route::get('/permissions', [RoleController::class, 'permissions'])->middleware('permission:roles.view');
     Route::get('/audit-events', AuditController::class)->middleware('permission:audit.view');
     Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:roles.view');

@@ -31,9 +31,10 @@ use OpenApi\Attributes as OA;
 )]
 #[OA\Schema(
     schema: 'ApiError',
-    required: ['success', 'message', 'errors'],
+    required: ['success', 'code', 'message', 'errors'],
     properties: [
         new OA\Property(property: 'success', type: 'boolean', example: false),
+        new OA\Property(property: 'code', type: 'string', example: 'resource.not_found'),
         new OA\Property(property: 'message', type: 'string', example: 'Request failed'),
         new OA\Property(property: 'errors', type: 'object', example: []),
     ],

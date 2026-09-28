@@ -6,6 +6,7 @@ use App\Enums\UserStatus;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,9 +16,9 @@ use Laravel\Sanctum\HasApiTokens;
 use Modules\Identity\Notifications\ResetPasswordNotification;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'status', 'last_login_at'])]
+#[Fillable(['name', 'email', 'password', 'status', 'locale', 'last_login_at'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
@@ -29,6 +30,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sendPasswordResetNotification(mixed $token): void
     {
         $this->notify(new ResetPasswordNotification((string) $token));
+    }
+
+    public function preferredLocale(): string
+    {
+        return $this->locale ?: config('app.locale');
     }
 
     /**

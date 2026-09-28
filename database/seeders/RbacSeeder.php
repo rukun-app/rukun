@@ -12,14 +12,16 @@ class RbacSeeder extends Seeder
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $permissions = ['users.view', 'users.create', 'users.suspend', 'users.assign-roles', 'roles.view', 'roles.create', 'roles.update', 'roles.delete', 'settings.view', 'settings.update', 'audit.view'];
+        $permissions = ['users.view', 'users.create', 'users.suspend', 'users.assign-roles', 'roles.view', 'roles.create', 'roles.update', 'roles.delete', 'settings.view', 'settings.update', 'audit.view', 'files.view-any', 'files.download-any', 'files.update-any', 'files.delete-any'];
 
         foreach ($permissions as $permission) {
             Permission::findOrCreate($permission, 'web');
         }
 
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         Role::findOrCreate('super-admin', 'web')->syncPermissions($permissions);
-        Role::findOrCreate('admin', 'web')->syncPermissions(['users.view', 'users.create', 'users.suspend', 'users.assign-roles', 'roles.view', 'settings.view', 'settings.update', 'audit.view']);
+        Role::findOrCreate('admin', 'web')->syncPermissions(['users.view', 'users.create', 'users.suspend', 'users.assign-roles', 'roles.view', 'settings.view', 'settings.update', 'audit.view', 'files.view-any', 'files.download-any', 'files.update-any', 'files.delete-any']);
         Role::findOrCreate('user', 'web');
     }
 }

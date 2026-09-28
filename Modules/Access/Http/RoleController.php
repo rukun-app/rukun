@@ -41,7 +41,7 @@ class RoleController
         }
         DB::transaction(function () use ($role, $data): void {
             $locked = Role::query()->lockForUpdate()->findOrFail($role->id);
-            abort_unless($locked->updated_at?->equalTo($data['updated_at']), 409, 'Role was changed by another request. Reload it and try again.');
+            abort_unless($locked->updated_at?->equalTo($data['updated_at']), 409, __('api.access.role_conflict'));
             $before = ['name' => $locked->name, 'permissions' => $locked->permissions()->pluck('name')->all()];
             $locked->update(collect($data)->only('name')->all());
             if (array_key_exists('permissions', $data)) {
@@ -58,12 +58,12 @@ class RoleController
     {
         DB::transaction(function () use ($role): void {
             $locked = Role::query()->lockForUpdate()->findOrFail($role->id);
-            abort_if($locked->users()->exists(), 422, 'Role is assigned to users.');
+            abort_if($locked->users()->exists(), 422, __('api.access.role_in_use'));
             Audit::record('rbac.role_deleted', $locked, ['name' => $locked->name]);
             $locked->delete();
         });
 
-        return ApiResponse::success(['message' => 'Role deleted.']);
+        return ApiResponse::success(['message' => __('api.access.role_deleted')]);
     }
 
     public function permissions(): JsonResponse

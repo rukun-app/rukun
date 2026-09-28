@@ -25,16 +25,16 @@ Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis be
 
 ### Roadmap fase V2
 
-| Fase | Nama | Deliverable utama |
-|---:|---|---|
-| V2.1 | File Management | Storage abstraction, metadata, private download, attachment, dan cleanup |
-| V2.2 | Multilingual Foundation | English/Indonesian locale resolution, translated API, validation, dan notification locale |
-| V2.3 | Notification Foundation | Inbox, email, preferences, queue delivery, dan notification API |
-| V2.4 | Realtime & Polling | Durable event stream, WebSocket adapter, polling cursor, dan recovery |
-| V2.5 | Operational Reliability | Request ID, structured logging, queue failure policy, dan operational commands |
-| V2.6 | API Reliability & Protection | Idempotency dan named rate limiters |
-| V2.7 | Automated Quality Gate | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
-| V2.8 | Integration Foundation | Webhook serta import/export foundation |
+| Fase | Nama | Status | Deliverable utama |
+|---:|---|---|---|
+| V2.1 | File Management | Selesai | Storage abstraction, metadata, private download, attachment, dan cleanup |
+| V2.2 | Multilingual Foundation | Selesai | English/Indonesian locale resolution, translated API, validation, dan notification locale |
+| V2.3 | Notification Foundation | Selesai | Inbox, email, preferences, queue delivery, dan notification API |
+| V2.4 | Realtime & Polling | Selesai | Durable event stream, WebSocket adapter, polling cursor, dan recovery |
+| V2.5 | Operational Reliability | Berikutnya | Request ID, structured logging, queue failure policy, dan operational commands |
+| V2.6 | API Reliability & Protection | Direncanakan | Idempotency dan named rate limiters |
+| V2.7 | Automated Quality Gate | Direncanakan | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
+| V2.8 | Integration Foundation | Direncanakan | Webhook serta import/export foundation |
 
 Setiap fase harus lulus test dan dokumentasinya sendiri sebelum fase berikutnya dimulai.
 
@@ -246,7 +246,6 @@ User biasa tetap dapat mengelola file miliknya melalui ownership policy tanpa pe
 |---|---|---:|:---:|
 | `files.max_upload_mb` | integer | `10` | Tidak |
 | `files.allowed_mime_types` | array | PDF, JPEG, PNG, WebP, plain text | Tidak |
-| `files.temporary_url_minutes` | integer | `10` | Tidak |
 
 Nilai final harus divalidasi melalui `SettingsRegistry`. Batas reverse proxy/PHP juga didokumentasikan karena dapat membatasi request sebelum Laravel berjalan.
 

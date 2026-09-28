@@ -7,6 +7,7 @@ use Core\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Modules\Settings\Settings;
 use Modules\Settings\SettingsRegistry;
 
@@ -29,6 +30,7 @@ class SettingsController
                 'key' => $key,
                 'value' => $settings->get($key),
                 ...$definition,
+                'description' => __($definition['description']),
             ]
         )->values());
     }
@@ -37,10 +39,18 @@ class SettingsController
     {
         $values = $request->validate(['settings' => ['required', 'array']])['settings'];
         $unknown = array_diff(array_keys($values), array_keys(SettingsRegistry::DEFINITIONS));
-        abort_if($unknown !== [], 422, 'Unknown setting keys: '.implode(', ', $unknown));
+        abort_if($unknown !== [], 422, __('api.settings.unknown', ['keys' => implode(', ', $unknown)]));
 
         $validated = collect($values)->mapWithKeys(function (mixed $value, string $key): array {
             $validatedValue = Validator::make(['value' => $value], ['value' => SettingsRegistry::DEFINITIONS[$key]['rules']])->validate()['value'];
+
+            if ($key === 'files.allowed_mime_types' && array_diff($validatedValue, config('files.allowed_mime_types')) !== []) {
+                throw ValidationException::withMessages(['settings.files.allowed_mime_types' => ['One or more MIME types are not supported.']]);
+            }
+
+            if ($key === 'app.locale' && ! in_array($validatedValue, config('localization.supported'), true)) {
+                throw ValidationException::withMessages(['settings.app.locale' => ['The selected locale is not supported.']]);
+            }
 
             return [$key => $validatedValue];
         })->all();

@@ -18,6 +18,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 - [Standar API](#standar-api)
 - [Swagger dan Telescope](#swagger-dan-telescope)
 - [Queue dan scheduler](#queue-dan-scheduler)
+- [Realtime dan polling](#realtime-dan-polling)
 - [Module system](#module-system)
 - [Testing](#testing)
 - [Checklist pengembangan](#checklist-pengembangan)
@@ -33,10 +34,14 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 | Phase 2: Settings | Selesai | Registry bertipe, validasi, cache Redis, public settings, dan metadata settings |
 | Observability | Selesai | Audit event dan Telescope dengan penyamaran data sensitif |
 | Pagination | Selesai | Cursor pagination sebagai standar koleksi |
-| Roadmap V2: Boilerplate hardening | Direncanakan | File, multilingual (`en`/`id`), notification, realtime/polling, operational reliability, API reliability, CI, dan integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
+| V2.1: File Management | Selesai | Private upload/download, metadata, ownership policy, admin permissions, attachment service, audit, dan queued cleanup |
+| V2.2: Multilingual | Selesai | Locale `en`/`id`, `Accept-Language`, preferensi user, translated validation/error, stable error code, dan localized settings metadata |
+| V2.3: Notification | Selesai | Localized inbox, email channel, preferences, read/unread lifecycle, cursor pagination, queue priority, dan MailDev verification |
+| V2.4: Realtime dan Polling | Selesai | Durable user events, opaque cursor, private Reverb channel, notification event, retention, dan fallback polling |
+| Roadmap V2 lanjutan | Direncanakan | Operational reliability, API reliability, CI, dan integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
 | Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
 
-Verifikasi terakhir: **40 test lulus dengan 180 assertions**.
+Verifikasi terakhir: **67 test lulus dengan 324 assertions**.
 
 ## Teknologi dan struktur
 
@@ -51,6 +56,7 @@ Verifikasi terakhir: **40 test lulus dengan 180 assertions**.
 | MailDev | SMTP development |
 | Swagger PHP / Swagger UI | OpenAPI 3.1 |
 | Laravel Telescope | Request, query, job, cache, mail, dan exception monitoring |
+| Laravel Reverb | Transport WebSocket opsional untuk durable event |
 | Pest 5 / Laravel Pint | Testing dan code style |
 
 | Direktori | Tanggung jawab |
@@ -60,9 +66,11 @@ Verifikasi terakhir: **40 test lulus dengan 180 assertions**.
 | `Modules/Identity/` | Authentication dan token lifecycle |
 | `Modules/Access/` | User, role, dan permission administration |
 | `Modules/Settings/` | Registry dan penyimpanan settings |
+| `Modules/Realtime/` | Durable event stream, polling, dan WebSocket publisher |
 | `Modules/Example/` | Contoh struktur modul |
 | `tests/Feature/` | Test API, infrastruktur, auth, RBAC, settings, dan modul |
 | `compose.jobs.yml` | Worker dan scheduler Core R |
+| `compose.realtime.yml` | Server Reverb opsional khusus Core R |
 
 ## Instalasi lokal
 
@@ -111,6 +119,15 @@ docker compose -f compose.jobs.yml up -d
 docker compose -f compose.jobs.yml ps
 ```
 
+Aktifkan Reverb secara terpisah setelah mengisi credential unik `REVERB_APP_*`:
+
+```sh
+docker compose -f compose.realtime.yml up -d
+docker compose -f compose.realtime.yml ps
+```
+
+`BROADCAST_CONNECTION=null` adalah default aman. Ubah menjadi `reverb` hanya saat server dan reverse proxy WebSocket sudah tersedia.
+
 Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storage dan AI sebagai layanan opsional.
 
 ## Environment dan isolasi testing
@@ -118,7 +135,8 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 | Variable | Fungsi | Development |
 |---|---|---|
 | `APP_URL` | URL backend | `https://core-r.p85.test:8443` |
-| `DB_*` | PostgreSQL | Host `postgres`, DB `laravel_core` |
+| `DB_*` | PostgreSQL | Connection `core`, host `postgres`, DB `laravel_core` |
+| `CORE_DB_PREFIX` | Prefix tabel boilerplate | `rcore_` |
 | `REDIS_PREFIX` | Isolasi key | `core-r:` |
 | `REDIS_CACHE_DB` | Cache | `0` |
 | `REDIS_QUEUE_DB` | Queue | `1` |
@@ -128,6 +146,9 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 | `AWS_*` | MinIO | Endpoint `http://minio:9000` |
 | `API_DOCS_ENABLED` | Swagger | `true` pada local |
 | `TELESCOPE_ENABLED` | Telescope | `true` pada local |
+| `BROADCAST_CONNECTION` | Transport realtime | `null` atau `reverb` |
+| `REVERB_APP_*` | Credential aplikasi Reverb | Nilai unik dari environment lokal |
+| `REVERB_ALLOWED_ORIGINS` | Origin WebSocket yang diizinkan | Daftar host dipisahkan koma |
 
 | Resource | Development | Testing |
 |---|---|---|
@@ -156,6 +177,43 @@ Login menerima `email`, `password`, dan `device_name`, lalu mengembalikan Sanctu
 
 User dapat melihat token atau perangkat melalui `GET /api/auth/tokens` dan mencabut token miliknya melalui `DELETE /api/auth/tokens/{token}`.
 
+## Multilingual API
+
+API mendukung English (`en`) dan Bahasa Indonesia (`id`) dengan fallback `en`. Client dapat mengirim `Accept-Language: id` atau regional tag seperti `id-ID`. Response menyertakan `Content-Language`.
+
+Jika header bahasa tidak dikirim, API memakai preferensi `locale` user, kemudian setting `app.locale`, lalu fallback. Preferensi disimpan melalui `PATCH /api/auth/profile`. Daftar bahasa tersedia melalui `GET /api/locales`.
+
+Response error memiliki `code` yang stabil untuk logika client, sedangkan `message` dan validation errors diterjemahkan:
+
+```json
+{
+  "success": false,
+  "code": "auth.unauthenticated",
+  "message": "Anda belum terautentikasi.",
+  "errors": []
+}
+```
+
+Permission, role, enum, event key, setting key, field API, dan identifier tetap machine-readable dan tidak diterjemahkan.
+
+## Notification
+
+Notification memakai Laravel database notification sebagai inbox dan Laravel Mail sebagai channel email. Payload database menyimpan translation key serta parameter aman sehingga teks dapat dirender mengikuti bahasa request.
+
+| Method | Endpoint | Fungsi |
+|---|---|---|
+| `GET` | `/api/notifications` | Inbox dengan filter `status`, `category`, dan cursor |
+| `GET` | `/api/notifications/unread-count` | Jumlah notifikasi belum dibaca |
+| `GET` | `/api/notifications/{notification}` | Detail notifikasi milik user |
+| `PATCH` | `/api/notifications/{notification}/read` | Tandai sudah dibaca |
+| `DELETE` | `/api/notifications/{notification}/read` | Tandai belum dibaca |
+| `POST` | `/api/notifications/read-all` | Tandai seluruhnya sudah dibaca |
+| `DELETE` | `/api/notifications/{notification}` | Hapus notifikasi dari inbox |
+| `GET` | `/api/notification-preferences` | Preferensi channel efektif |
+| `PUT` | `/api/notification-preferences` | Ubah channel per kategori |
+
+Kategori awal adalah `security`, `account`, dan `system`. Channel keamanan wajib tidak dapat dimatikan. Email diproses melalui queue dan memakai locale recipient.
+
 ## RBAC
 
 Role tersimpan secara dinamis. Controller memeriksa permission `resource.action` dan tidak membuat keputusan berdasarkan nama role.
@@ -173,6 +231,10 @@ Role tersimpan secara dinamis. Controller memeriksa permission `resource.action`
 | `settings.view` | Melihat settings dan metadata |
 | `settings.update` | Mengubah settings |
 | `audit.view` | Membaca audit events |
+| `files.view-any` | Melihat metadata file milik user lain |
+| `files.download-any` | Mengunduh file milik user lain |
+| `files.update-any` | Mengubah metadata file milik user lain |
+| `files.delete-any` | Menghapus file milik user lain |
 
 | Role bawaan | Akses |
 |---|---|
@@ -203,6 +265,9 @@ Definisi settings berada di `Modules/Settings/SettingsRegistry.php`. Nilai datab
 | `auth.email_verification_required` | boolean | `true` | Ya | Verifikasi sebelum login |
 | `auth.token_expiration_days` | integer | `30` | Tidak | Masa berlaku token baru |
 | `auth.max_login_attempts` | integer | `5` | Tidak | Batas percobaan login |
+| `files.max_upload_mb` | integer | `10` | Tidak | Batas ukuran upload |
+| `files.allowed_mime_types` | array | PDF, JPEG, PNG, WebP, text | Tidak | MIME type yang diizinkan |
+| `realtime.event_retention_days` | integer | `7` | Tidak | Retensi durable event untuk polling |
 
 Metadata settings menyediakan key, value, type, default, rules, public, editable, dan description. Rahasia tetap disimpan melalui environment.
 
@@ -257,6 +322,21 @@ Filter user: `search`, `status`, `role`, `per_page`, dan `cursor`.
 | `PATCH` | `/api/settings` | `settings.update` | Update settings |
 | `GET` | `/api/audit-events` | `audit.view` | Audit dengan filter dan cursor |
 
+### File Management
+
+File selalu private dan API memakai UUID publik. Storage path, disk, checksum, credential, dan primary key internal tidak dikirim kepada client.
+
+| Method | Endpoint | Akses | Fungsi |
+|---|---|---|---|
+| `GET` | `/api/files` | Owner | Daftar file milik user dengan cursor pagination |
+| `POST` | `/api/files` | Bearer | Upload multipart file |
+| `GET` | `/api/files/{file}` | Owner / `files.view-any` | Metadata file |
+| `PATCH` | `/api/files/{file}` | Owner / `files.update-any` | Ubah display name dan metadata |
+| `GET` | `/api/files/{file}/download` | Owner / `files.download-any` | Download private terotorisasi |
+| `DELETE` | `/api/files/{file}` | Owner / `files.delete-any` | Soft delete dan antrekan physical cleanup |
+
+Filter daftar file: `search`, `mime_type`, `from`, `to`, `per_page`, dan `cursor`. File yang masih menjadi attachment harus dilepas sebelum dapat dihapus. Binary selalu disimpan melalui Laravel Filesystem sehingga MinIO dapat diganti dengan storage S3-compatible lain melalui environment.
+
 Audit mendukung filter `event`, `actor_id`, `per_page`, dan `cursor`. Detail request dan response tersedia pada Swagger.
 
 ## Standar API
@@ -272,6 +352,7 @@ Response gagal:
 ```json
 {
   "success": false,
+  "code": "validation.failed",
   "message": "Validation failed.",
   "errors": {"email": ["The email field must be a valid email address."]}
 }
@@ -313,8 +394,25 @@ Telescope merekam request/response, query, cache, Redis, job, mail, notification
 | Setiap menit | `core:heartbeat` | Probe scheduler |
 | Harian | `sanctum:prune-expired --hours=24` | Bersihkan token expired |
 | Harian 02:00 | `telescope:prune --hours=48` | Bersihkan data Telescope lama |
+| Harian 02:15 | `realtime:prune-events` | Bersihkan durable event yang melewati retensi |
 
 Service menggunakan PHP 8.5 dan `docker-network`; layanan infrastruktur bersama tidak diubah.
+
+## Realtime dan polling
+
+Setiap event disimpan dahulu di tabel `user_events`, lalu dikirim ke Reverb bila broadcasting aktif. Reverb bersifat opsional: REST API dan polling tetap berfungsi saat `BROADCAST_CONNECTION=null` atau server WebSocket tidak tersedia.
+
+| Method | Endpoint | Fungsi |
+|---|---|---|
+| `GET` | `/api/events/cursor` | Mengambil cursor pada batas event terbaru |
+| `GET` | `/api/events` | Mengambil event setelah `cursor`, dengan filter `types[]` dan `limit` |
+| `POST` | `/api/broadcasting/auth` | Otorisasi channel privat memakai Sanctum bearer token |
+
+Channel user adalah `private-users.{userId}` dan event broadcast bernama `.core.event`. Response polling membawa envelope yang sama: `id`, `type`, `schema_version`, `resource`, `payload`, dan `created_at`. Client menyimpan `next_cursor` setelah seluruh batch berhasil diproses dan melakukan deduplikasi memakai event `id`.
+
+Cursor bersifat opaque. HTTP `409` dengan code `realtime.cursor_expired` meminta client memuat ulang resource canonical dan mengambil cursor baru. Retensi dikendalikan setting `realtime.event_retention_days`.
+
+Untuk menambah tipe event, daftarkan key beserta versi schema di `Modules/Realtime/EventRegistry.php`, lalu gunakan kontrak `RealtimePublisher`. Publisher menulis event setelah transaksi database commit. Jangan memasukkan token, credential, path storage, atau model serialization mentah ke payload.
 
 ## Module system
 
@@ -325,6 +423,8 @@ docker exec -w /var/www/p85/core-r dev-php85 php artisan make:module Billing
 ```
 
 Provider dan route modul dimuat melalui `Core/Providers/ModuleServiceProvider.php`. Modul baru perlu menambahkan migration, permission, audit, OpenAPI, dan Feature test sesuai kebutuhannya.
+
+Tabel boilerplate memakai connection `core`, yang mengarah ke PostgreSQL yang sama dengan prefix fisik `rcore_`. Tabel modul bisnis tanpa prefix harus memakai connection `pgsql` secara eksplisit pada migration dan model. Relasi ke user mengacu ke tabel fisik `rcore_users`. Konvensi ini menjaga tabel fondasi mudah dibedakan dari tabel domain.
 
 ## Testing
 

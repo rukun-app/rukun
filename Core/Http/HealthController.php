@@ -20,16 +20,9 @@ class HealthController
             new OA\Response(
                 response: 200,
                 description: 'All required services are available',
-                content: new OA\JsonContent(
-                    required: ['status', 'services'],
-                    properties: [
-                        new OA\Property(property: 'status', type: 'string', enum: ['healthy'], example: 'healthy'),
-                        new OA\Property(property: 'services', type: 'object', additionalProperties: new OA\AdditionalProperties(ref: '#/components/schemas/ServiceHealth')),
-                    ],
-                    type: 'object',
-                ),
+                content: new OA\JsonContent(ref: '#/components/schemas/HealthResponse'),
             ),
-            new OA\Response(response: 503, description: 'A required service is unavailable'),
+            new OA\Response(response: 503, description: 'A required service is unavailable', content: new OA\JsonContent(ref: '#/components/schemas/HealthResponse')),
         ],
     )]
     public function __invoke(): JsonResponse

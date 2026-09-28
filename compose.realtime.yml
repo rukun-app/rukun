@@ -1,0 +1,15 @@
+services:
+  core-r-reverb:
+    image: docker-php85
+    working_dir: /var/www/p85/core-r
+    volumes:
+      - ./:/var/www/p85/core-r
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    restart: unless-stopped
+    networks:
+      - shared
+
+networks:
+  shared:
+    external: true
+    name: docker-network

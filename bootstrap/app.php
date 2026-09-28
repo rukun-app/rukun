@@ -2,8 +2,11 @@
 
 use Core\Http\ApiResponse;
 use Core\Http\Middleware\EnsureUserIsActive;
+use Core\Http\Middleware\ResolveLocale;
+use Core\Http\Middleware\ResolveUserLocale;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -22,7 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['active' => EnsureUserIsActive::class, 'permission' => PermissionMiddleware::class]);
+        $middleware->api(prepend: [ResolveLocale::class]);
+        $middleware->appendToPriorityList(Authenticate::class, ResolveUserLocale::class);
+        $middleware->alias(['active' => EnsureUserIsActive::class, 'locale' => ResolveUserLocale::class, 'permission' => PermissionMiddleware::class]);
         $middleware->redirectGuestsTo(fn (Request $request): ?string => $request->is('api/*') ? null : '/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -42,19 +47,27 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof HttpExceptionInterface => $exception->getStatusCode(),
                 default => 500,
             };
-            $message = match (true) {
-                $exception instanceof AuthenticationException => 'Unauthenticated.',
-                $exception instanceof AuthorizationException => 'You do not have permission to perform this action.',
-                $exception instanceof UnauthorizedException => 'You do not have permission to perform this action.',
-                $exception instanceof ModelNotFoundException => 'Resource not found.',
-                $exception instanceof ValidationException => 'Validation failed.',
-                $status === 404 => 'Resource not found.',
-                $status === 405 => 'Method not allowed.',
-                $status === 429 => 'Too many requests.',
-                $status >= 500 => 'Server error.',
-                default => $exception->getMessage() ?: 'Request failed.',
+            $code = match (true) {
+                $exception instanceof AuthenticationException => 'auth.unauthenticated',
+                $exception instanceof AuthorizationException, $exception instanceof UnauthorizedException => 'auth.forbidden',
+                $exception instanceof ModelNotFoundException, $status === 404 => 'resource.not_found',
+                $exception instanceof ValidationException => 'validation.failed',
+                $status === 405 => 'request.method_not_allowed',
+                $status === 429 => 'request.rate_limited',
+                $status >= 500 => 'server.error',
+                default => 'request.failed',
+            };
+            $message = match ($code) {
+                'auth.unauthenticated' => __('api.errors.unauthenticated'),
+                'auth.forbidden' => __('api.errors.forbidden'),
+                'resource.not_found' => __('api.errors.not_found'),
+                'validation.failed' => __('api.errors.validation'),
+                'request.method_not_allowed' => __('api.errors.method_not_allowed'),
+                'request.rate_limited' => __('api.errors.rate_limited'),
+                'server.error' => __('api.errors.server'),
+                default => $exception->getMessage() ?: __('api.errors.request_failed'),
             };
 
-            return ApiResponse::error($message, $status, $exception instanceof ValidationException ? $exception->errors() : []);
+            return ApiResponse::error($message, $status, $exception instanceof ValidationException ? $exception->errors() : [], $code);
         });
     })->create();

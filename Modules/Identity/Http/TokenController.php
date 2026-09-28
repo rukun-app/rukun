@@ -27,10 +27,10 @@ class TokenController
 
     public function destroy(Request $request, PersonalAccessToken $token): JsonResponse
     {
-        abort_unless((int) $token->tokenable_id === (int) $request->user()->getKey() && $token->tokenable_type === $request->user()->getMorphClass(), 404, 'Token not found.');
+        abort_unless((int) $token->tokenable_id === (int) $request->user()->getKey() && $token->tokenable_type === $request->user()->getMorphClass(), 404, __('api.tokens.not_found'));
         Audit::record('auth.token_revoked', $request->user(), ['token_id' => $token->id, 'device_name' => $token->name]);
         $token->delete();
 
-        return ApiResponse::success(['message' => 'Token revoked.']);
+        return ApiResponse::success(['message' => __('api.tokens.revoked')]);
     }
 }

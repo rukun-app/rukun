@@ -80,11 +80,11 @@ class UserAccessController
     public function status(Request $request, User $user): JsonResponse
     {
         $data = $request->validate(['status' => ['required', Rule::enum(UserStatus::class)]]);
-        abort_if($request->user()->is($user) && $data['status'] === UserStatus::Suspended->value, 422, 'You cannot suspend your own account.');
+        abort_if($request->user()->is($user) && $data['status'] === UserStatus::Suspended->value, 422, __('api.access.self_suspend'));
         DB::transaction(function () use ($user, $data): void {
             User::query()->lockForUpdate()->get(['id']);
             $user->refresh();
-            abort_if($data['status'] === UserStatus::Suspended->value && $this->isLastAccessManager($user), 422, 'The last access manager cannot be suspended.');
+            abort_if($data['status'] === UserStatus::Suspended->value && $this->isLastAccessManager($user), 422, __('api.access.last_manager_suspend'));
             $before = $user->status->value;
             $user->update(['status' => $data['status']]);
             if ($user->status === UserStatus::Suspended) {
@@ -100,14 +100,14 @@ class UserAccessController
     {
         $data = $request->validate(['roles' => ['required', 'array'], 'roles.*' => ['string', Rule::exists('roles', 'name')]]);
         $roleNames = $request->json('roles', []);
-        abort_if($request->user()->is($user) && $roleNames === [], 422, 'You cannot remove all your own roles.');
+        abort_if($request->user()->is($user) && $roleNames === [], 422, __('api.access.self_roles'));
         DB::transaction(function () use ($user, $roleNames): void {
             User::query()->lockForUpdate()->get(['id']);
             $user->refresh();
             $before = $user->getRoleNames()->all();
             $roleIds = Role::query()->whereIn('name', $roleNames)->pluck('id')->all();
             $keepsAccessManagement = Role::query()->whereKey($roleIds)->whereHas('permissions', fn ($query) => $query->where('name', 'users.assign-roles'))->exists();
-            abort_if(! $keepsAccessManagement && $this->isLastAccessManager($user), 422, 'The last access manager must keep access management permission.');
+            abort_if(! $keepsAccessManagement && $this->isLastAccessManager($user), 422, __('api.access.last_manager_roles'));
             $user->roles()->sync($roleIds);
             $user->unsetRelation('roles');
             Audit::record('user.roles_updated', $user, ['before' => $before, 'after' => $roleNames]);

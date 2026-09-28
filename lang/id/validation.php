@@ -1,0 +1,40 @@
+<?php
+
+return [
+    'accepted' => ':attribute harus diterima.',
+    'array' => ':attribute harus berupa array.',
+    'boolean' => ':attribute harus bernilai benar atau salah.',
+    'confirmed' => 'Konfirmasi :attribute tidak cocok.',
+    'current_password' => 'Kata sandi saat ini salah.',
+    'date' => ':attribute harus berupa tanggal yang valid.',
+    'email' => ':attribute harus berupa alamat email yang valid.',
+    'exists' => ':attribute yang dipilih tidak valid.',
+    'file' => ':attribute harus berupa file.',
+    'integer' => ':attribute harus berupa bilangan bulat.',
+    'max' => [
+        'array' => ':attribute maksimal berisi :max item.',
+        'file' => 'Ukuran :attribute tidak boleh lebih dari :max kilobita.',
+        'numeric' => ':attribute tidak boleh lebih dari :max.',
+        'string' => ':attribute tidak boleh lebih dari :max karakter.',
+    ],
+    'mimetypes' => ':attribute harus berupa file dengan tipe: :values.',
+    'min' => [
+        'array' => ':attribute minimal berisi :min item.',
+        'file' => 'Ukuran :attribute minimal :min kilobita.',
+        'numeric' => ':attribute minimal bernilai :min.',
+        'string' => ':attribute minimal terdiri dari :min karakter.',
+    ],
+    'required' => ':attribute wajib diisi.',
+    'string' => ':attribute harus berupa teks.',
+    'unique' => ':attribute sudah digunakan.',
+    'attributes' => [
+        'current_password' => 'kata sandi saat ini',
+        'device_name' => 'nama perangkat',
+        'display_name' => 'nama tampilan',
+        'email' => 'email',
+        'file' => 'file',
+        'name' => 'nama',
+        'password' => 'kata sandi',
+        'password_confirmation' => 'konfirmasi kata sandi',
+    ],
+];

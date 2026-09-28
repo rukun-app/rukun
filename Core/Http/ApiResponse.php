@@ -11,8 +11,8 @@ class ApiResponse
         return response()->json(['success' => true, 'data' => $data], $status);
     }
 
-    public static function error(string $message, int $status, array $errors = []): JsonResponse
+    public static function error(string $message, int $status, array $errors = [], string $code = 'request.failed'): JsonResponse
     {
-        return response()->json(['success' => false, 'message' => $message, 'errors' => $errors], $status);
+        return response()->json(['success' => false, 'code' => $code, 'message' => $message, 'errors' => $errors], $status);
     }
 }

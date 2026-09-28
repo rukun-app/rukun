@@ -47,3 +47,13 @@ it('exposes settings metadata to authorized users', function () {
             'description' => 'Allow public user registration.',
         ]);
 });
+
+it('rejects unsupported file upload mime settings', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('super-admin');
+    Sanctum::actingAs($admin);
+
+    $this->patchJson('/api/settings', ['settings' => ['files.allowed_mime_types' => ['text/html']]])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('settings.files.allowed_mime_types');
+});
