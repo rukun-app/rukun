@@ -16,5 +16,6 @@ class SettingsRegistry
         'files.allowed_mime_types' => ['type' => 'array', 'default' => ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain'], 'rules' => ['array', 'min:1', 'max:10'], 'public' => false, 'editable' => true, 'description' => 'settings.allowed_mime_types'],
         'realtime.event_retention_days' => ['type' => 'integer', 'default' => 7, 'rules' => ['integer', 'min:1', 'max:90'], 'public' => false, 'editable' => true, 'description' => 'settings.event_retention_days'],
         'ops.failed_job_retention_hours' => ['type' => 'integer', 'default' => 168, 'rules' => ['integer', 'min:1', 'max:2160'], 'public' => false, 'editable' => true, 'description' => 'settings.failed_job_retention_hours'],
+        'api.idempotency_ttl_hours' => ['type' => 'integer', 'default' => 24, 'rules' => ['integer', 'min:1', 'max:168'], 'public' => false, 'editable' => true, 'description' => 'settings.idempotency_ttl_hours'],
     ];
 }

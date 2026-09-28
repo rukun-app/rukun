@@ -11,6 +11,8 @@ return [
         'server' => 'Server error.',
         'request_failed' => 'Request failed.',
         'cursor_expired' => 'The event cursor has expired. Request a new cursor and refresh the affected resources.',
+        'idempotency_processing' => 'A request with this idempotency key is still being processed.',
+        'idempotency_conflict' => 'This idempotency key was already used with a different request.',
     ],
     'auth' => [
         'registration_disabled' => 'Registration is disabled.',

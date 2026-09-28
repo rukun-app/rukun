@@ -76,3 +76,24 @@ it('documents a response body schema for every response before execution', funct
 
     expect($missing)->toBe([]);
 });
+
+it('documents idempotency and named rate limit contracts', function () {
+    $document = $this->getJson('/docs/api/openapi.json')->assertOk()->json();
+
+    foreach (['/api/files', '/api/users'] as $path) {
+        $operation = $document['paths'][$path]['post'];
+        $parameter = collect($operation['parameters'])->firstWhere('name', 'Idempotency-Key');
+
+        expect($parameter)->not->toBeNull()
+            ->and($parameter['in'])->toBe('header')
+            ->and($operation['responses']['201']['headers'])->toHaveKey('Idempotency-Replayed')
+            ->and($operation['responses']['409']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/ErrorResponse');
+    }
+
+    foreach ([['/api/auth/login', 'post'], ['/api/events', 'get'], ['/api/settings', 'patch']] as [$path, $method]) {
+        $response = $document['paths'][$path][$method]['responses']['429'];
+
+        expect($response['headers'])->toHaveKeys(['Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-Request-ID'])
+            ->and($response['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/ErrorResponse');
+    }
+});

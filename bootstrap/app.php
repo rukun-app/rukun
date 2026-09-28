@@ -3,6 +3,7 @@
 use Core\Http\ApiResponse;
 use Core\Http\Middleware\AddRequestLogContext;
 use Core\Http\Middleware\AssignRequestId;
+use Core\Http\Middleware\EnsureIdempotency;
 use Core\Http\Middleware\EnsureUserIsActive;
 use Core\Http\Middleware\ResolveLocale;
 use Core\Http\Middleware\ResolveUserLocale;
@@ -31,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [AddRequestLogContext::class]);
         $middleware->appendToPriorityList(Authenticate::class, AddRequestLogContext::class);
         $middleware->appendToPriorityList(Authenticate::class, ResolveUserLocale::class);
-        $middleware->alias(['active' => EnsureUserIsActive::class, 'locale' => ResolveUserLocale::class, 'permission' => PermissionMiddleware::class]);
+        $middleware->alias(['active' => EnsureUserIsActive::class, 'idempotent' => EnsureIdempotency::class, 'locale' => ResolveUserLocale::class, 'permission' => PermissionMiddleware::class]);
         $middleware->redirectGuestsTo(fn (Request $request): ?string => $request->is('api/*') ? null : '/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -72,6 +73,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 default => $exception->getMessage() ?: __('api.errors.request_failed'),
             };
 
-            return ApiResponse::error($message, $status, $exception instanceof ValidationException ? $exception->errors() : [], $code);
+            $response = ApiResponse::error($message, $status, $exception instanceof ValidationException ? $exception->errors() : [], $code);
+            if ($exception instanceof HttpExceptionInterface) {
+                $response->headers->add($exception->getHeaders());
+            }
+
+            return $response;
         });
     })->create();

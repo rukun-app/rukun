@@ -5,12 +5,12 @@ use Modules\Identity\Http\AuthController;
 use Modules\Identity\Http\TokenController;
 
 Route::prefix('api/auth')->middleware('api')->group(function (): void {
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1')->name('api.auth.register');
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:20,1')->name('api.auth.login');
-    Route::post('/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:3,1')->name('api.auth.email.resend');
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register')->name('api.auth.register');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-login')->name('api.auth.login');
+    Route::post('/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:auth-recovery')->name('api.auth.email.resend');
     Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verify'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1')->name('password.email');
-    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1')->name('password.update');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth-recovery')->name('password.email');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth-recovery')->name('password.update');
     Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function (): void {
         Route::get('/me', [AuthController::class, 'me'])->name('api.auth.me');
         Route::patch('/profile', [AuthController::class, 'updateProfile'])->name('api.auth.profile');

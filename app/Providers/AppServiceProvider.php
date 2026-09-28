@@ -3,12 +3,16 @@
 namespace App\Providers;
 
 use Core\Support\CorrelationContext;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +29,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.auth_register'))->by('register:'.$request->ip()));
+        RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.auth_login'))->by('login:'.$request->ip().':'.sha1(Str::lower((string) $request->input('email')))));
+        RateLimiter::for('auth-recovery', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.auth_recovery'))->by('recovery:'.$request->ip().':'.sha1(Str::lower((string) $request->input('email')))));
+        RateLimiter::for('files-upload', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.files_upload'))->by('files:'.$request->user()?->getAuthIdentifier()));
+        RateLimiter::for('events-poll', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.events_poll'))->by('events:'.$request->user()?->getAuthIdentifier()));
+        RateLimiter::for('notifications-mutate', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.notifications_mutate'))->by('notifications:'.$request->user()?->getAuthIdentifier()));
+        RateLimiter::for('admin-sensitive', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.admin_sensitive'))->by('admin:'.$request->user()?->getAuthIdentifier()));
+
         Queue::createPayloadUsing(fn () => ['request_id' => app(CorrelationContext::class)->id()]);
         Queue::before(function (JobProcessing $event): void {
             $requestId = $event->job->payload()['request_id'] ?? null;

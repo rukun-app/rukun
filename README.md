@@ -20,6 +20,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 - [Queue dan scheduler](#queue-dan-scheduler)
 - [Realtime dan polling](#realtime-dan-polling)
 - [Operational reliability](#operational-reliability)
+- [API reliability dan protection](#api-reliability-dan-protection)
 - [Module system](#module-system)
 - [Testing](#testing)
 - [Checklist pengembangan](#checklist-pengembangan)
@@ -40,10 +41,11 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 | V2.3: Notification | Selesai | Localized inbox, email channel, preferences, read/unread lifecycle, cursor pagination, queue priority, dan MailDev verification |
 | V2.4: Realtime dan Polling | Selesai | Durable user events, opaque cursor, private Reverb channel, notification event, retention, dan fallback polling |
 | V2.5: Operational Reliability | Selesai | Request ID, correlation context, JSON logging, redaction, job policy, failed job summary, dan pruning |
-| Roadmap V2 lanjutan | Direncanakan | API reliability, CI, dan integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
+| V2.6: API Reliability & Protection | Selesai | Idempotency key untuk operasi create dan named Redis rate limiter per kelompok endpoint |
+| Roadmap V2 lanjutan | Direncanakan | CI dan integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
 | Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
 
-Verifikasi terakhir: **72 test lulus dengan 345 assertions**.
+Verifikasi terakhir: **78 test lulus dengan 399 assertions**.
 
 ## Teknologi dan struktur
 
@@ -152,6 +154,8 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 | `REVERB_APP_*` | Credential aplikasi Reverb | Nilai unik dari environment lokal |
 | `REVERB_ALLOWED_ORIGINS` | Origin WebSocket yang diizinkan | Daftar host dipisahkan koma |
 | `LOG_CHANNEL` | Format log utama | `stack` untuk local, `json` untuk structured stderr |
+| `CACHE_LIMITER` | Store rate limiter | `redis` |
+| `RATE_LIMIT_*` | Batas named rate limiter per menit | Lihat `.env.example` |
 
 | Resource | Development | Testing |
 |---|---|---|
@@ -272,6 +276,7 @@ Definisi settings berada di `Modules/Settings/SettingsRegistry.php`. Nilai datab
 | `files.allowed_mime_types` | array | PDF, JPEG, PNG, WebP, text | Tidak | MIME type yang diizinkan |
 | `realtime.event_retention_days` | integer | `7` | Tidak | Retensi durable event untuk polling |
 | `ops.failed_job_retention_hours` | integer | `168` | Tidak | Retensi failed queue job untuk inspeksi |
+| `api.idempotency_ttl_hours` | integer | `24` | Tidak | Masa simpan hasil operasi idempotent, 1-168 jam |
 
 Metadata settings menyediakan key, value, type, default, rules, public, editable, dan description. Rahasia tetap disimpan melalui environment.
 
@@ -444,6 +449,33 @@ php artisan core:prune-failed-jobs
 
 Default retensi failed job adalah 168 jam. Payload dan exception trace hanya diperiksa oleh operator yang memiliki akses shell karena dapat mengandung data internal.
 
+## API reliability dan protection
+
+`POST /api/files` dan `POST /api/users` menerima header opsional `Idempotency-Key`. Gunakan nilai unik 8-128 karakter untuk satu operasi logis dan kirim nilai yang sama ketika request perlu diulang.
+
+| Kondisi | Hasil |
+|---|---|
+| Request pertama berhasil | Operasi dijalankan dan response disimpan; `Idempotency-Replayed: false` |
+| Key dan payload yang sama dikirim ulang | Response sukses sebelumnya dikembalikan; `Idempotency-Replayed: true` |
+| Key sama dengan payload berbeda | HTTP `409`, code `idempotency.key_reused` |
+| Operasi dengan key tersebut masih berjalan | HTTP `409`, code `idempotency.in_progress` |
+
+Response idempotent disimpan selama `api.idempotency_ttl_hours`, dengan default 24 jam. Client perlu membuat key baru setelah payload atau tujuan operasi berubah.
+
+Rate limiter memakai Redis dan dipisahkan menurut tujuan endpoint:
+
+| Kelompok | Batas per menit | Endpoint utama |
+|---|---:|---|
+| Registrasi | 5 per IP | Register |
+| Login | 20 per IP dan email | Login |
+| Recovery | 3 per IP dan email | Verifikasi ulang, lupa/reset password |
+| Upload | 20 per user | Upload file |
+| Polling event | 120 per user | Durable event polling |
+| Mutasi notifikasi | 60 per user | Read, unread, read-all, delete, preferences |
+| Administrasi sensitif | 30 per user | Mutasi role, user, dan settings |
+
+Nilai tersebut dapat diubah melalui variable `RATE_LIMIT_*` di environment. Setelah perubahan, muat ulang configuration cache dan worker. Ketika batas terlampaui API mengembalikan HTTP `429`, code `request.rate_limited`, serta header `Retry-After`, `X-RateLimit-Limit`, dan `X-RateLimit-Remaining`. Client menunggu sekurangnya selama `Retry-After` sebelum mencoba kembali.
+
 ## Module system
 
 Buat modul:
@@ -463,7 +495,7 @@ docker exec -w /var/www/p85/core-r dev-php85 php artisan test
 docker exec -w /var/www/p85/core-r dev-php85 vendor/bin/pint --test
 ```
 
-Test mencakup isolasi PostgreSQL/Redis, health, response API, module system, queue, scheduler, identity, token ownership, RBAC, concurrency, admin protection, user filters, cursor pagination, settings, audit, Swagger, dan Telescope configuration.
+Test mencakup isolasi PostgreSQL/Redis, health, response API, module system, queue, scheduler, identity, token ownership, RBAC, concurrency, admin protection, user filters, cursor pagination, settings, audit, Swagger, Telescope, idempotency, dan rate limiting.
 
 ## Checklist pengembangan
 

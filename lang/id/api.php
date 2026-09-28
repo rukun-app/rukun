@@ -11,6 +11,8 @@ return [
         'server' => 'Terjadi kesalahan pada server.',
         'request_failed' => 'Permintaan gagal.',
         'cursor_expired' => 'Cursor event telah kedaluwarsa. Minta cursor baru dan muat ulang resource terkait.',
+        'idempotency_processing' => 'Permintaan dengan idempotency key ini masih diproses.',
+        'idempotency_conflict' => 'Idempotency key ini sudah digunakan dengan permintaan berbeda.',
     ],
     'auth' => [
         'registration_disabled' => 'Registrasi sedang dinonaktifkan.',
