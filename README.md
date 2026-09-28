@@ -1,8 +1,22 @@
-# Core R
+# Rukun Backend
 
-Core R adalah fondasi backend API berbasis Laravel 13 dan PHP 8.5. Proyek menyediakan autentikasi Sanctum, manajemen user, RBAC dinamis, runtime settings, audit trail, OpenAPI, Telescope, queue worker, dan scheduler.
+Rukun adalah backend pengelolaan lingkungan RW/RT berbasis Core R (Laravel 13 dan PHP 8.5). Proyek menyediakan autentikasi Sanctum, manajemen user, RBAC dinamis, runtime settings, audit trail, OpenAPI, Telescope, queue worker, dan scheduler.
 
 Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jaringan Docker eksternal `docker-network`. Repo ini tidak membuat ulang layanan tersebut.
+
+## Implementasi Rukun
+
+Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0 sedang dikerjakan; F1–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
+
+Template `.env.example` menggunakan database `laravel_rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Template bukan bukti resource sudah diprovisikan.
+
+`.env` dan `.env.testing` lokal sudah dibuat dari template Rukun dengan credential infrastruktur bersama dari `../core-r`. Keduanya diabaikan Git dan memiliki permission `0600`; APP_KEY development/testing serta credential Reverb dibuat baru. Credential Midtrans tidak disalin dan integrasinya tetap nonaktif. Database `laravel_rukun` dan bucket `rukun` masih perlu diverifikasi/diprovisikan. Aturan command/testing di `AGENTS.md` masih menunjuk Core R dan sedang menunggu penyelarasan; jangan menjalankan migration atau test Rukun terhadap aplikasi/database development Core R. Redis testing tetap 13–15 dengan prefix khusus `rukun-test:`. Credential hanya disimpan dalam environment lokal yang diabaikan Git.
+
+Remote existing: `origin` adalah `git@github.com:rukun-app/rukun.git`; `upstream` adalah `git@github.com:RezaRiyaldi/core-r.git` dengan push dinonaktifkan. Pembaruan foundation dilakukan pada branch khusus melalui `git fetch upstream` dan `git merge upstream/main`, kemudian review migration/config/conflict dan jalankan seluruh quality gate sebelum merge ke branch utama.
+
+Untuk staging, siapkan HTTPS, `APP_DEBUG=false`, `LOG_CHANNEL=json`, `TELESCOPE_ENABLED=false`, secret melalui environment, dan bucket private khusus environment. Backup harus mencakup PostgreSQL, object storage, serta penyimpanan aman encryption key secara terpisah. Tentukan jadwal/retention dan target pemulihan sebelum pilot. Restore dump dan object ke environment staging terisolasi, lalu verifikasi health, login, akses file, dan rekonsiliasi data; catat waktu serta hasilnya pada log F0. **Backup/restore staging belum diuji.**
+
+Bagian operasional berikut masih memuat referensi baseline Core R selama F0 berlangsung. Gunakan status F0 di atas untuk membedakan panduan baseline dan environment Rukun yang sudah diverifikasi.
 
 ## Daftar isi
 

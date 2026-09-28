@@ -59,7 +59,7 @@ jobs:
       REDIS_CLIENT: phpredis
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: 6379
-      REDIS_PREFIX: core-r-ci-${{ github.run_id }}-
+      REDIS_PREFIX: rukun-ci-${{ github.run_id }}-
       REDIS_CACHE_DB: 13
       REDIS_QUEUE_DB: 14
       REDIS_SESSION_DB: 15

@@ -1,19 +1,21 @@
+name: rukun
+
 services:
-  core-r-queue:
+  rukun-queue:
     image: docker-php85
-    working_dir: /var/www/p85/core-r
+    working_dir: /var/www/p85/rukun
     volumes:
-      - ./:/var/www/p85/core-r
+      - ./:/var/www/p85/rukun
     command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --queue=high,default,low
     restart: unless-stopped
     networks:
       - shared
 
-  core-r-scheduler:
+  rukun-scheduler:
     image: docker-php85
-    working_dir: /var/www/p85/core-r
+    working_dir: /var/www/p85/rukun
     volumes:
-      - ./:/var/www/p85/core-r
+      - ./:/var/www/p85/rukun
     command: sh -c 'while true; do php artisan schedule:run --no-interaction; sleep 60; done'
     restart: unless-stopped
     networks:
