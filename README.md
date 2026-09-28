@@ -22,6 +22,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 - [Operational reliability](#operational-reliability)
 - [API reliability dan protection](#api-reliability-dan-protection)
 - [Automated quality gate](#automated-quality-gate)
+- [Payment foundation](#payment-foundation)
 - [Module system](#module-system)
 - [Testing](#testing)
 - [Checklist pengembangan](#checklist-pengembangan)
@@ -44,10 +45,11 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 | V2.5: Operational Reliability | Selesai | Request ID, correlation context, JSON logging, redaction, job policy, failed job summary, dan pruning |
 | V2.6: API Reliability & Protection | Selesai | Idempotency key untuk operasi create dan named Redis rate limiter per kelompok endpoint |
 | V2.7: Automated Quality Gate | Selesai | GitHub Actions dengan PHP 8.5, PostgreSQL 16, Redis 7, Pest, Pint, OpenAPI, dan pemeriksaan secret |
-| Roadmap V2 lanjutan | Direncanakan | Integration foundation; lihat [`plan-v2.md`](plan-v2.md) |
+| V2.8C: Payment Foundation | Selesai | Provider contract, transaksi pembayaran generik, Midtrans Snap, callback terverifikasi, audit, dan realtime event |
+| Roadmap V2 lanjutan | Direncanakan | Webhook umum dan import/export foundation; lihat [`plan-v2.md`](plan-v2.md) |
 | Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
 
-Verifikasi terakhir: **78 test lulus dengan 399 assertions**.
+Verifikasi terakhir: **83 test lulus dengan 427 assertions**.
 
 ## Teknologi dan struktur
 
@@ -73,6 +75,7 @@ Verifikasi terakhir: **78 test lulus dengan 399 assertions**.
 | `Modules/Access/` | User, role, dan permission administration |
 | `Modules/Settings/` | Registry dan penyimpanan settings |
 | `Modules/Realtime/` | Durable event stream, polling, dan WebSocket publisher |
+| `Modules/Payments/` | Payment contract, transaksi generik, Midtrans Snap, callback, dan status event |
 | `Modules/Example/` | Contoh struktur modul |
 | `tests/Feature/` | Test API, infrastruktur, auth, RBAC, settings, dan modul |
 | `compose.jobs.yml` | Worker dan scheduler Core R |
@@ -158,6 +161,8 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 | `LOG_CHANNEL` | Format log utama | `stack` untuk local, `json` untuk structured stderr |
 | `CACHE_LIMITER` | Store rate limiter | `redis` |
 | `RATE_LIMIT_*` | Batas named rate limiter per menit | Lihat `.env.example` |
+| `PAYMENT_GATEWAY` | Adapter pembayaran aktif | `midtrans` |
+| `MIDTRANS_*` | Mode, credential, endpoint override, dan timeout Midtrans | Credential hanya pada environment lokal |
 
 | Resource | Development | Testing |
 |---|---|---|
@@ -244,6 +249,7 @@ Role tersimpan secara dinamis. Controller memeriksa permission `resource.action`
 | `files.download-any` | Mengunduh file milik user lain |
 | `files.update-any` | Mengubah metadata file milik user lain |
 | `files.delete-any` | Menghapus file milik user lain |
+| `payments.view-any` | Melihat status pembayaran milik user lain |
 
 | Role bawaan | Akses |
 |---|---|
@@ -499,6 +505,47 @@ docker exec -w /var/www/p85/core-r dev-php85 vendor/bin/pint --test
 docker exec -w /var/www/p85/core-r dev-php85 php artisan api-docs:generate --output=storage/framework/ci-openapi.json
 docker exec -w /var/www/p85/core-r dev-php85 php scripts/ci/validate-openapi.php storage/framework/ci-openapi.json
 ```
+
+## Payment foundation
+
+Module `Payments` menyediakan transaksi pembayaran yang tidak bergantung pada invoice, order, subscription, atau domain bisnis tertentu. Modul bisnis membuat pembayaran melalui `Modules\Payments\Services\PaymentManager` setelah memastikan resource, pemilik, dan nominalnya valid.
+
+```php
+$payment = app(PaymentManager::class)->create(
+    user: $user,
+    referenceType: 'billing.invoice',
+    referenceId: (string) $invoice->getKey(),
+    amount: $invoice->amount,
+    customer: ['name' => $user->name, 'email' => $user->email],
+    metadata: ['invoice_number' => $invoice->number],
+);
+```
+
+| Komponen | Kontrak |
+|---|---|
+| Nominal | Integer, mata uang awal `IDR` |
+| Referensi bisnis | `reference_type` dan `reference_id`; tidak membuat foreign key lintas modul |
+| Checkout | Midtrans Snap sandbox secara default |
+| Callback | `POST /api/payments/webhooks/midtrans` |
+| Status user | `GET /api/payments/{payment}` untuk owner atau permission `payments.view-any` |
+| Event internal | `PaymentStatusChanged` |
+| Realtime event | `payment.updated` |
+| Delivery callback | Idempotent berdasarkan fingerprint transaksi dan status |
+
+Status internal mencakup `creating`, `pending`, `authorized`, `paid`, `denied`, `cancelled`, `expired`, `failed`, `provider_unknown`, `refunded`, `partially_refunded`, `chargeback`, dan `partial_chargeback`. Status `capture` atau `settlement` dengan fraud status yang diterima dipetakan menjadi `paid`. Callback memverifikasi signature Midtrans dan mencocokkan nominal asli sebelum mengubah transaksi.
+
+Konfigurasi lokal disimpan melalui environment dan tidak boleh masuk Git:
+
+```dotenv
+PAYMENT_GATEWAY=midtrans
+MIDTRANS_ENABLED=true
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=
+MIDTRANS_MERCHANT_ID=
+MIDTRANS_PRODUCTION=false
+```
+
+Atur Notification URL Midtrans ke `/api/payments/webhooks/midtrans` pada host publik HTTPS. Modul bisnis wajib memakai idempotency pada endpoint yang memanggil `PaymentManager::create()` dan menangani `PaymentStatusChanged` untuk mengubah invoice/order miliknya. Core tidak otomatis menganggap resource bisnis selesai hanya karena pembayaran berubah menjadi `paid`.
 
 ## Module system
 

@@ -18,6 +18,7 @@ it('serves Swagger UI and a valid OpenAPI document', function () {
             '/api/files', '/api/files/{file}', '/api/files/{file}/download',
             '/api/notifications', '/api/notifications/unread-count', '/api/notifications/{notification}',
             '/api/notifications/{notification}/read', '/api/notifications/read-all', '/api/notification-preferences',
+            '/api/payments/{payment}', '/api/payments/webhooks/midtrans',
         ])
         ->and($document['paths']['/api/auth/login']['post'])->toHaveKey('requestBody')
         ->and($document['paths']['/api/auth/login']['post']['responses']['200']['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/LoginSuccessResponse')

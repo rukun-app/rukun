@@ -13,6 +13,7 @@ class OpenApiDocument
         'readAllNotifications', 'deleteNotification', 'updateNotificationPreferences',
         'createRole', 'updateRole', 'deleteRole', 'createUser', 'updateUserStatus',
         'syncUserRoles', 'updateSettings',
+        'receiveMidtransNotification',
     ];
 
     public function json(): string

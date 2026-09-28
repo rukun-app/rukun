@@ -36,6 +36,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('events-poll', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.events_poll'))->by('events:'.$request->user()?->getAuthIdentifier()));
         RateLimiter::for('notifications-mutate', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.notifications_mutate'))->by('notifications:'.$request->user()?->getAuthIdentifier()));
         RateLimiter::for('admin-sensitive', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.admin_sensitive'))->by('admin:'.$request->user()?->getAuthIdentifier()));
+        RateLimiter::for('payment-webhooks', fn (Request $request) => Limit::perMinute(config('reliability.rate_limits.payment_webhooks'))->by('payment-webhooks:'.$request->ip()));
 
         Queue::createPayloadUsing(fn () => ['request_id' => app(CorrelationContext::class)->id()]);
         Queue::before(function (JobProcessing $event): void {

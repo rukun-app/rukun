@@ -9,5 +9,6 @@ return [
         'events_poll' => max(1, (int) env('RATE_LIMIT_EVENTS_POLL', 120)),
         'notifications_mutate' => max(1, (int) env('RATE_LIMIT_NOTIFICATIONS_MUTATE', 60)),
         'admin_sensitive' => max(1, (int) env('RATE_LIMIT_ADMIN_SENSITIVE', 30)),
+        'payment_webhooks' => max(1, (int) env('RATE_LIMIT_PAYMENT_WEBHOOKS', 120)),
     ],
 ];

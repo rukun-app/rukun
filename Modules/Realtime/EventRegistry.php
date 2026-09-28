@@ -4,15 +4,18 @@ namespace Modules\Realtime;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\DatabaseNotification;
+use Modules\Payments\Models\Payment;
 
 class EventRegistry
 {
     public const TYPES = [
         'notification.created' => ['schema_version' => 1],
+        'payment.updated' => ['schema_version' => 1],
     ];
 
     public const RESOURCES = [
         DatabaseNotification::class => 'notification',
+        Payment::class => 'payment',
     ];
 
     public static function validate(string $type): void

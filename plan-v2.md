@@ -34,7 +34,7 @@ Implementasi harus tetap independen dari domain bisnis tertentu. Modul bisnis be
 | V2.5 | Operational Reliability | Selesai | Request ID, structured logging, queue failure policy, dan operational commands |
 | V2.6 | API Reliability & Protection | Selesai | Idempotency dan named rate limiters |
 | V2.7 | Automated Quality Gate | Selesai | CI untuk Pest, Pint, PostgreSQL, Redis, dan OpenAPI |
-| V2.8 | Integration Foundation | Berikutnya | Webhook serta import/export foundation |
+| V2.8 | Integration Foundation | Dalam proses | Payment foundation selesai; webhook umum serta import/export berikutnya |
 
 Setiap fase harus lulus test dan dokumentasinya sendiri sebelum fase berikutnya dimulai.
 
@@ -679,7 +679,7 @@ Acceptance minimum V2.7:
 
 ### V2.8 — Integration Foundation
 
-V2.8 dibagi menjadi dua submodule yang dapat dikerjakan terpisah.
+V2.8 dibagi menjadi tiga submodule yang dapat dikerjakan terpisah.
 
 #### V2.8A — Webhooks
 
@@ -699,6 +699,16 @@ V2.8 dibagi menjadi dua submodule yang dapat dikerjakan terpisah.
 - Import memiliki validation report dan batas jumlah error yang disimpan.
 - Progress menerbitkan durable realtime event sehingga dapat diterima lewat WebSocket atau polling.
 - Format/domain importer dan exporter dibuat oleh modul bisnis; core hanya menyediakan orchestration.
+
+#### V2.8C — Payment Foundation
+
+- Provider contract agar modul bisnis tidak bergantung langsung pada SDK atau payload provider.
+- Penyimpanan payment intent generik dengan referensi tipe dan ID milik modul bisnis.
+- Midtrans Snap adapter memakai server-side Basic Auth, sandbox sebagai default, dan credential dari environment.
+- Callback Midtrans memverifikasi SHA-512 signature, nominal asli, dan memproses redelivery secara idempotent.
+- Pemetaan status provider ke status internal, termasuk paid, failure, expiry, refund, dan chargeback.
+- Event `PaymentStatusChanged`, durable realtime event `payment.updated`, audit, ownership, permission administrator, OpenAPI, dan test.
+- Modul bisnis tetap bertanggung jawab atas harga, invoice/order lifecycle, hak akses create payment, serta aksi setelah pembayaran berhasil.
 
 Acceptance minimum V2.8:
 
@@ -791,6 +801,9 @@ Acceptance minimum V2.8:
 | CI | PHP 8.5 + PostgreSQL 16 + Redis 7 yang disposable |
 | Webhook delivery | Signed, queued, at least once, dan SSRF protected |
 | Import/export | Async orchestration; file melalui File Management |
+| Payment abstraction | Provider contract; modul bisnis tidak memanggil Midtrans langsung |
+| Payment provider awal | Midtrans Snap, sandbox sebagai default |
+| Payment callback | Signature dan nominal diverifikasi; redelivery idempotent |
 | Pagination | Cursor |
 | Secrets | Environment only |
 
