@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'after' => ':attribute harus berupa tanggal setelah :date.',
+    'in' => ':attribute yang dipilih tidak valid.',
+    'uuid' => ':attribute harus berupa UUID yang valid.',
+    'regex' => 'Format :attribute tidak valid.',
+    'required_if' => ':attribute wajib diisi jika :other bernilai :value.',
+    'required_unless' => ':attribute wajib diisi kecuali :other bernilai :values.',
+    'required_without' => ':attribute wajib diisi jika :values tidak tersedia.',
+    'prohibited' => ':attribute tidak diperbolehkan.',
+    'prohibited_if' => ':attribute tidak diperbolehkan jika :other bernilai :value.',
+    'prohibits' => ':attribute tidak dapat digunakan bersama :other.',
     'accepted' => ':attribute harus diterima.',
     'array' => ':attribute harus berupa array.',
     'boolean' => ':attribute harus bernilai benar atau salah.',
@@ -28,6 +38,8 @@ return [
     'string' => ':attribute harus berupa teks.',
     'unique' => ':attribute sudah digunakan.',
     'attributes' => [
+        'identifier' => 'identitas login',
+        'phone' => 'nomor HP',
         'current_password' => 'kata sandi saat ini',
         'device_name' => 'nama perangkat',
         'display_name' => 'nama tampilan',

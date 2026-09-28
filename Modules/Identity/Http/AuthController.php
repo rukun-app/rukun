@@ -9,17 +9,23 @@ use Core\Http\ApiResponse;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Modules\Identity\Support\LoginIdentifier;
 use Modules\Settings\Settings;
 
 class AuthController
 {
     public function register(Request $request, Settings $settings): JsonResponse
     {
+        if (is_string($request->input('email'))) {
+            $request->merge(['email' => mb_strtolower(trim($request->input('email')))]);
+        }
         abort_unless($settings->get('auth.registration_enabled'), 403, __('api.auth.registration_disabled'));
         $data = $request->validate(['name' => ['required', 'string', 'max:100'], 'email' => ['required', 'email', 'max:255', 'unique:users,email'], 'password' => ['required', 'string', 'min:8', 'confirmed']]);
         $user = User::query()->create(['name' => $data['name'], 'email' => Str::lower($data['email']), 'password' => $data['password']]);
@@ -32,41 +38,45 @@ class AuthController
 
     public function login(Request $request, Settings $settings): JsonResponse
     {
-        $credentials = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string'], 'device_name' => ['required', 'string', 'max:100']]);
-        $email = Str::lower($credentials['email']);
-        $key = 'login:'.sha1($email.'|'.$request->ip());
+        $credentials = $request->validate(['identifier' => ['required_without:email', 'string', 'max:255', 'prohibits:email'], 'email' => ['required_without:identifier', 'email', 'max:255', 'prohibits:identifier'], 'password' => ['required', 'string'], 'device_name' => ['required', 'string', 'max:100']]);
+        $identifier = LoginIdentifier::normalize($credentials['identifier'] ?? $credentials['email']);
+        $key = 'login:'.sha1($identifier.'|'.$request->ip());
         $maxAttempts = (int) $settings->get('auth.max_login_attempts');
 
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             return ApiResponse::error(__('api.auth.too_many_attempts'), 429, code: 'auth.rate_limited');
         }
 
-        $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
+        return DB::transaction(function () use ($identifier, $credentials, $key, $settings): JsonResponse {
+            $user = str_contains($identifier, '@')
+                ? User::query()->whereRaw('LOWER(email) = ?', [$identifier])->lockForUpdate()->first()
+                : User::query()->where('phone', $identifier)->lockForUpdate()->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-            RateLimiter::hit($key, 60);
-            Audit::record('auth.login_failed', $user, ['email' => $email]);
+            if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+                RateLimiter::hit($key, 60);
+                Audit::record('auth.login_failed', $user);
 
-            return ApiResponse::error(__('api.auth.invalid_credentials'), 422, ['email' => [__('api.auth.invalid_credentials')]], 'auth.invalid_credentials');
-        }
+                return ApiResponse::error(__('api.auth.invalid_credentials'), 422, ['identifier' => [__('api.auth.invalid_credentials')]], 'auth.invalid_credentials');
+            }
 
-        if ($user->status !== UserStatus::Active) {
-            Audit::record('auth.login_blocked', $user);
+            if ($user->status !== UserStatus::Active) {
+                Audit::record('auth.login_blocked', $user);
 
-            return ApiResponse::error(__('api.auth.suspended'), 403, code: 'auth.suspended');
-        }
+                return ApiResponse::error(__('api.auth.suspended'), 403, code: 'auth.suspended');
+            }
 
-        if ($settings->get('auth.email_verification_required') && ! $user->hasVerifiedEmail()) {
-            return ApiResponse::error(__('api.auth.unverified'), 403, code: 'auth.email_unverified');
-        }
+            if ($user->email && $settings->get('auth.email_verification_required') && ! $user->hasVerifiedEmail()) {
+                return ApiResponse::error(__('api.auth.unverified'), 403, code: 'auth.email_unverified');
+            }
 
-        RateLimiter::clear($key);
-        $user->forceFill(['last_login_at' => now()])->save();
-        $expiresAt = now()->addDays((int) $settings->get('auth.token_expiration_days'));
-        $token = $user->createToken($credentials['device_name'], ['*'], $expiresAt);
-        Audit::record('auth.login', $user);
+            RateLimiter::clear($key);
+            $user->forceFill(['last_login_at' => now()])->save();
+            $expiresAt = now()->addDays((int) $settings->get('auth.token_expiration_days'));
+            $token = $user->createToken($credentials['device_name'], ['*'], $expiresAt);
+            Audit::record('auth.login', $user);
 
-        return ApiResponse::success(['token' => $token->plainTextToken, 'token_type' => 'Bearer', 'expires_at' => $expiresAt->toISOString(), 'user' => $this->userData($user)]);
+            return ApiResponse::success(['token' => $token->plainTextToken, 'token_type' => 'Bearer', 'expires_at' => $expiresAt->toISOString(), 'user' => $this->userData($user)]);
+        });
     }
 
     public function me(Request $request): JsonResponse
@@ -88,9 +98,18 @@ class AuthController
         $data = $request->validate(['current_password' => ['required', 'current_password'], 'password' => ['required', 'string', 'min:8', 'confirmed']]);
         $user = $request->user();
         $currentTokenId = $user->currentAccessToken()?->getKey();
-        $user->update(['password' => $data['password']]);
-        $user->tokens()->when($currentTokenId, fn ($query) => $query->whereKeyNot($currentTokenId))->delete();
-        Audit::record('auth.password_changed', $user);
+        DB::transaction(function () use ($user, $data, $currentTokenId): void {
+            $locked = $user->newQuery()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if (! Hash::check($data['current_password'], $locked->password)) {
+                throw ValidationException::withMessages(['current_password' => __('auth.password')]);
+            }
+            if (Hash::check($data['password'], $locked->password)) {
+                throw ValidationException::withMessages(['password' => __('api.auth.password_must_differ')]);
+            }
+            $user->forceFill(['password' => $data['password'], 'must_change_password' => false])->save();
+            $user->tokens()->when($currentTokenId, fn ($query) => $query->whereKeyNot($currentTokenId))->delete();
+            Audit::record('auth.password_changed', $user);
+        });
 
         return ApiResponse::success(['message' => __('api.auth.password_changed')]);
     }
@@ -145,11 +164,22 @@ class AuthController
     public function resetPassword(Request $request): JsonResponse
     {
         $data = $request->validate(['token' => ['required', 'string'], 'email' => ['required', 'email'], 'password' => ['required', 'string', 'min:12', 'confirmed']]);
-        $status = Password::reset($data, function (User $user, string $password): void {
-            $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
-            $user->tokens()->delete();
-            event(new PasswordReset($user));
-            Audit::record('auth.password_reset', $user);
+        $data['email'] = mb_strtolower(trim($data['email']));
+        $status = Password::reset($data, function (User $user, string $password) use ($data): void {
+            DB::transaction(function () use ($user, $password, $data): void {
+                $user = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+                if (! Password::tokenExists($user, $data['token'])) {
+                    throw ValidationException::withMessages(['email' => __('passwords.token')]);
+                }
+                if (Hash::check($password, $user->password)) {
+                    throw ValidationException::withMessages(['password' => __('api.auth.password_must_differ')]);
+                }
+                $user->forceFill(['password' => $password, 'remember_token' => Str::random(60), 'must_change_password' => false])->save();
+                $user->tokens()->delete();
+                Password::deleteToken($user);
+                event(new PasswordReset($user));
+                Audit::record('auth.password_reset', $user);
+            });
         });
 
         if ($status !== Password::PASSWORD_RESET) {
@@ -161,6 +191,6 @@ class AuthController
 
     private function userData(User $user): array
     {
-        return ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'locale' => $user->locale, 'status' => $user->status->value, 'email_verified_at' => $user->email_verified_at?->toISOString(), 'last_login_at' => $user->last_login_at?->toISOString(), 'roles' => $user->getRoleNames()->values(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()];
+        return ['id' => $user->id, 'public_id' => $user->public_id, 'phone' => $user->phone, 'must_change_password' => $user->must_change_password, 'name' => $user->name, 'email' => $user->email, 'locale' => $user->locale, 'status' => $user->status->value, 'email_verified_at' => $user->email_verified_at?->toISOString(), 'last_login_at' => $user->last_login_at?->toISOString(), 'roles' => $user->getRoleNames()->values(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()];
     }
 }

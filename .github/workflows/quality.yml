@@ -23,13 +23,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: laravel_core_test
+          POSTGRES_DB: rukun_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d laravel_core_test"
+          --health-cmd "pg_isready -U postgres -d rukun_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -53,7 +53,7 @@ jobs:
       CORE_DB_PREFIX: rcore_
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
-      DB_DATABASE: laravel_core_test
+      DB_DATABASE: rukun_test
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       REDIS_CLIENT: phpredis

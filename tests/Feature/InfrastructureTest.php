@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Queue;
 
 it('uses the isolated PostgreSQL test database', function () {
     expect(config('database.default'))->toBe('core')
-        ->and(config('database.connections.core.database'))->toBe('laravel_core_test')
+        ->and(config('database.connections.core.database'))->toBe('rukun_test')
         ->and(config('database.connections.core.prefix'))->toBe('rcore_');
 
     expect(DB::select('SELECT 1 AS connected')[0]->connected)->toBe(1);

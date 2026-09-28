@@ -15,6 +15,10 @@ return [
         'idempotency_conflict' => 'Idempotency key ini sudah digunakan dengan permintaan berbeda.',
     ],
     'auth' => [
+        'password_must_differ' => 'Password baru harus berbeda dari password saat ini.',
+        'invalid_phone' => 'Gunakan nomor HP Indonesia yang valid (08…, 628…, atau +628…).',
+        'password_change_required' => 'Ganti password awal sebelum melanjutkan.',
+
         'registration_disabled' => 'Registrasi sedang dinonaktifkan.',
         'registered' => 'Registrasi berhasil. Verifikasi email Anda sebelum masuk.',
         'too_many_attempts' => 'Terlalu banyak percobaan masuk.',

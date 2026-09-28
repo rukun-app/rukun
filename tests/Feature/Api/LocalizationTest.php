@@ -36,7 +36,8 @@ it('localizes validation errors and falls back from unsupported languages', func
         ->assertUnprocessable()
         ->assertJsonPath('code', 'validation.failed')
         ->assertJsonPath('message', 'Validasi gagal.')
-        ->assertJsonPath('errors.email.0', 'email wajib diisi.');
+        ->assertJsonPath('errors.email.0', 'email wajib diisi jika identitas login tidak tersedia.')
+        ->assertJsonPath('errors.identifier.0', 'identitas login wajib diisi jika email tidak tersedia.');
 
     $this->getJson('/api/auth/me', ['Accept-Language' => 'fr-FR'])
         ->assertUnauthorized()->assertHeader('Content-Language', 'en');
@@ -69,4 +70,5 @@ it('keeps core API translation keys in parity', function () {
     $flatten = fn (array $messages): array => array_keys(collect($messages)->dot()->all());
 
     expect($flatten(require lang_path('en/api.php')))->toBe($flatten(require lang_path('id/api.php')));
+    expect($flatten(require base_path('Modules/Community/lang/en/messages.php')))->toBe($flatten(require base_path('Modules/Community/lang/id/messages.php')));
 });

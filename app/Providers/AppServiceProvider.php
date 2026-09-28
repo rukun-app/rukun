@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.auth_register'))->by('register:'.$request->ip()));
-        RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.auth_login'))->by('login:'.$request->ip().':'.sha1(Str::lower((string) $request->input('email')))));
+        RateLimiter::for('auth-login', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.auth_login'))->by('login:'.$request->ip()));
         RateLimiter::for('auth-recovery', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.auth_recovery'))->by('recovery:'.$request->ip().':'.sha1(Str::lower((string) $request->input('email')))));
         RateLimiter::for('files-upload', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.files_upload'))->by('files:'.$request->user()?->getAuthIdentifier()));
         RateLimiter::for('events-poll', fn (Request $request) => Limit::perMinute(app(Settings::class)->get('rate_limit.events_poll'))->by('events:'.$request->user()?->getAuthIdentifier()));

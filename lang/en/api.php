@@ -15,6 +15,10 @@ return [
         'idempotency_conflict' => 'This idempotency key was already used with a different request.',
     ],
     'auth' => [
+        'password_must_differ' => 'The new password must differ from the current password.',
+        'invalid_phone' => 'Use a valid Indonesian mobile number (08…, 628…, or +628…).',
+        'password_change_required' => 'Change your initial password before continuing.',
+
         'registration_disabled' => 'Registration is disabled.',
         'registered' => 'Registration successful. Verify your email before login.',
         'too_many_attempts' => 'Too many login attempts.',

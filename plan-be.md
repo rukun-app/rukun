@@ -11,12 +11,12 @@
 
 ## Status Implementasi
 
-> **Status per 28 September 2026:** F0 sedang dikerjakan. F1–F8 belum dimulai; F9 HOLD. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
+> **Status per 28 September 2026:** F0 lokal dan F1 selesai (dependency Household/import dijadwalkan di F2); F2–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
 
 | Fase | Nama | Status |
 |---|---|---|
-| F0 | Bootstrap & Core R Isolation | Sebagian selesai |
-| F1 | Identity, Account Provisioning & Area | Belum dimulai |
+| F0 | Bootstrap & Core R Isolation | Selesai untuk development lokal |
+| F1 | Identity, Account Provisioning & Area | Selesai; integrasi Household/import di F2 |
 | F2 | Household, Resident & Scoped Authorization | Belum dimulai |
 | F3 | Billing, Manual Payments & Cashbook | Belum dimulai |
 | F4 | WiFi Collective & Gallon Benefit | Belum dimulai |
@@ -30,21 +30,45 @@
 
 - [x] Remote `origin` menuju `rukun-app/rukun`; `upstream` Core R mempunyai push URL `no_push`.
 - [x] Workflow merge upstream didokumentasikan di README.
-- [x] Template development memakai nama Rukun, hostname Rukun, database `laravel_rukun`, prefix Redis `rukun:`, DB Redis 3–5, dan bucket `rukun`.
+- [x] Template development memakai nama Rukun, hostname Rukun, database `rukun`, prefix Redis `rukun:`, DB Redis 3–5, dan bucket `rukun`.
 - [x] Compose worker/scheduler/Reverb memakai identitas Rukun dan jaringan existing `docker-network`.
 - [x] Prefix tabel foundation `rcore_` dipertahankan.
-- [ ] Path command dan database testing dalam AGENTS.md diselaraskan dengan environment Rukun.
+- [x] AGENTS.md memakai `/var/www/p85/rukun`; `.env.testing`, PHPUnit, test infrastruktur, dan CI memakai `rukun_test`.
 - [x] `.env` dan `.env.testing` lokal dibuat dengan credential shared infrastructure dari `../core-r`, APP_KEY terpisah, credential Reverb baru, permission `0600`, dan Git ignore terverifikasi. Midtrans tetap nonaktif.
-- [ ] Database dan bucket khusus Rukun diprovisikan/diverifikasi; koneksi runtime belum diuji.
-- [ ] Health, admin login, dan `/api/auth/me` terverifikasi pada Rukun.
-- [ ] PostgreSQL, Redis, storage, mail, worker, scheduler, dan Nginx terverifikasi pada Rukun.
-- [ ] Pest dan Pint lulus pada working copy Rukun.
+- [x] Database `rukun` / `rukun_test` dan bucket `rukun` dibuat; migration, RBAC seeder, dan private storage write/read/delete lulus.
+- [x] Health HTTPS Rukun: database, Redis, dan storage `up`.
+- [x] Feature test bootstrap admin, login, dan `/api/auth/me` lulus pada database `rukun_test`.
+- [x] Administrator development dibuat dan login serta `/api/auth/me` diverifikasi melalui HTTPS; token probe dicabut. Credential lokal berada di `storage/app/private/bootstrap-admin.json` (Git ignored, permission `0600`); hapus setelah password diganti.
+- [x] PostgreSQL, Redis, MinIO, Nginx HTTPS, worker khusus Rukun (ProbeJob), dan scheduler (heartbeat) terverifikasi.
+- [x] Koneksi SMTP MailDev berhasil.
+- [x] Email probe ke mailbox lokal MailDev diterima dan diverifikasi melalui API MailDev.
+- [x] Pest: 96 test / 549 assertions; Pint lulus pada working copy Rukun.
 - [x] Validasi gabungan Compose jobs/realtime, `git diff --check`, dan secret scan file tracked lulus.
-- [ ] OpenAPI generation/validation lulus.
-- [ ] GitHub Quality Gate lulus pada repository Rukun.
-- [ ] HTTPS, logging JSON, Telescope production disabled, secret handling, serta strategi backup/object storage disiapkan untuk staging.
-- [ ] Backup dan restore staging diuji.
+- [x] OpenAPI generation/validation lulus: 49 paths / 59 operations.
+- [ ] **Gate sebelum production pilot:** GitHub Quality Gate lulus pada repository Rukun.
+- [ ] **Gate sebelum production pilot:** konfigurasi staging HTTPS, JSON logging, Telescope disabled, secret handling, backup schedule, dan object storage diverifikasi.
+- [x] Dump/restore PostgreSQL lokal ke database rehearsal sementara: jumlah tabel dan seeded roles sesuai; database rehearsal dihapus.
+- [ ] **Gate sebelum production pilot:** backup dan restore staging (termasuk object storage) diuji.
 - [x] Belum ada modul bisnis Rukun yang dibuat sebelum gate F0 selesai.
+
+### Checklist F1
+
+- [x] Login `identifier` menerima email atau nomor HP Indonesia; field `email` lama tetap didukung secara eksklusif.
+- [x] Normalisasi server-side, unique email case-insensitive / phone, UUID publik user, dan constraint minimal identifier.
+- [x] Akun phone-only tidak memerlukan email atau OTP; akun dengan email tetap mengikuti kebijakan verifikasi Core.
+- [x] `must_change_password` membatasi akses ke profil sendiri, ganti password, dan logout; password baru harus berbeda.
+- [x] Provisioning manual melalui `POST /api/community/accounts`, scoped ke RT, dengan mandatory `Idempotency-Key`.
+- [x] Password awal acak unik, output ciphertext Redis berumur 15 menit, download satu kali oleh pembuat yang masih berwenang, tanpa plaintext DB/audit.
+- [x] Recovery administratif scoped/audited, idempotent, mencabut token lama dan reset link lama, serta melindungi akun pengurus berprivilege.
+- [x] Recovery email menggunakan Core dan menghapus pembatasan password awal setelah reset sukses.
+- [x] CRUD RW/RT dinamis, UUID publik, cursor pagination, policy, en/id, OpenAPI, serta DB constraint hierarki.
+- [x] Scoped role assignment GLOBAL/RW/RT dengan starts_at/ends_at, multi-role, revocation history, dan RW inheritance.
+- [x] Tabel bisnis tanpa prefix; audit dan mutasi provisioning memakai transaksi yang sama melalui koneksi `rukun` ke database yang sama.
+- [x] Final F1: 116 Pest test / 686 assertions, Pint, OpenAPI (56 paths / 70 operations), secret scan, dan diff check lulus.
+- [ ] **Dependency F2:** link Resident ↔ User dan import Household/Resident dengan `create_account`.
+- [ ] **Dependency F2:** household-assisted recovery dengan explicit capability, scope HOUSEHOLD/VENDOR, serta sinkronisasi scope akun saat mutasi membership.
+
+Pembagian dependency: F1 membuat akun dengan `account_scopes` sebagai scope pengelolaan administratif di RT. Data ini bukan Household/Resident atau bukti hubungan keluarga. F2 membangun hubungan domain tersebut dan memastikan scope akun mengikuti mutasi yang sah. Penempatan household recovery/import di F2 menghindari pemakaian role keluarga sebagai shortcut authorization.
 
 ### Log Implementasi
 
@@ -52,8 +76,11 @@
 |---|---|---|---|
 | 2026-09-28 | F0 | Audit remote dan mount container; template identity dan compose diisolasi untuk Rukun; README dan tracker ini diperbarui. | Compose config, diff check, dan tracked secret scan lulus; gate runtime, Pest/Pint, OpenAPI, CI, dan staging belum lulus. |
 | 2026-09-28 | F0 | `.env` dan `.env.testing` dibuat; isolasi identity/key dan Git ignore diperiksa tanpa menampilkan secret. | Database testing masih `laravel_core_test` sesuai AGENTS.md; penyelarasan aturan, provisioning database/bucket, dan runtime check belum selesai. |
+| 2026-09-28 | F0 | Isolasi database mengikuti konfigurasi terbaru `rukun` / `rukun_test`; migration, RBAC seeder, bucket, HTTPS health, worker/scheduler, SMTP connection, local DB restore, 96 test / 549 assertions, Pint, OpenAPI 49 paths / 59 operations lulus. | Admin development, email end-to-end, CI remote dan staging belum terverifikasi; F1 belum dimulai. |
+| 2026-09-28 | F0 | Admin development login dan `/api/auth/me` lulus melalui HTTPS; email probe diterima MailDev lokal; seluruh gate lokal selesai. | Sesuai arahan pengguna, CI remote dan staging menjadi gate sebelum production pilot. |
+| 2026-09-28 | F1 | Identity email/HP, UUID user, first-login password change, provisioning/recovery scoped dan idempotent, output sementara terenkripsi, area CRUD, temporal scope GLOBAL/RW/RT, audit satu transaksi, constraint DB, en/id, dan OpenAPI selesai. Migration dan seeder diterapkan di development. | 116 test / 686 assertions, Pint, OpenAPI 56 paths / 70 operations, secret scan, serta diff check lulus. Integrasi Resident/Household, import create_account, scope HOUSEHOLD/VENDOR, dan household-assisted recovery dilanjutkan di F2. |
 
-Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate fase aktif selesai.
+Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate development fase aktif selesai. CI remote dan staging tetap wajib sebelum production pilot, tetapi tidak menghalangi F1 dan fase development berikutnya.
 
 ------------------------------------------------------------------------
 
@@ -251,9 +278,9 @@ Phase selesai jika:
 -   Pint lulus;
 -   OpenAPI generation lulus;
 -   secret scan lulus;
--   GitHub Quality Gate lulus;
--   backup + restore staging pernah diuji;
--   tidak ada business module Rukun sebelum gate ini selesai.
+-   GitHub Quality Gate lulus sebelum production pilot (bukan blocker development);
+-   backup + restore staging pernah diuji sebelum production pilot (bukan blocker development);
+-   tidak ada business module Rukun sebelum gate lokal selesai.
 
 ------------------------------------------------------------------------
 
@@ -292,6 +319,8 @@ OTP tidak diperlukan pada MVP.
 SMS/WhatsApp OTP menjadi backlog/future integration.
 
 ## 2. Initial Account Provisioning
+
+Implementasi F1 menyediakan provisioning akun manual scoped RT. Alur yang membuat Resident/Household dan flag import `create_account` diselesaikan di F2 bersama model domain tersebut, menggunakan service provisioning F1.
 
 Akun dapat dibuat:
 
@@ -375,7 +404,7 @@ Administrative recovery harus:
 -   tidak memungkinkan admin membaca password permanen User;
 -   mewajibkan User menetapkan password baru.
 
-### Household-assisted recovery
+### Household-assisted recovery — implementasi di F2
 
 Anggota Household tertentu dapat membantu recovery akun anggota lain
 jika mempunyai explicit household account-management capability.
@@ -413,7 +442,7 @@ Jumlah aktual merupakan data runtime/import.
 -   first-login password change enforced;
 -   email recovery bekerja;
 -   administrative recovery scoped dan audited;
--   household recovery tidak dapat dilakukan anggota tanpa hak;
+-   household recovery tidak dapat dilakukan anggota tanpa hak (gate F2, setelah Household/Membership tersedia);
 -   token lifecycle setelah reset teruji;
 -   RW/RT CRUD terproteksi;
 -   cross-area unauthorized access ditolak.
@@ -599,6 +628,9 @@ Import harus mempunyai:
 
 ## Acceptance Gate
 
+-   Resident/User provisioning dan import create_account terhubung ke service F1;
+-   household-assisted recovery membutuhkan explicit capability dan diaudit;
+-   account_scopes mengikuti mutasi Household/Membership yang sah;
 -   satu Household dapat mempunyai beberapa Resident;
 -   Resident tanpa User valid;
 -   beberapa User dapat terhubung ke Household yang sama;

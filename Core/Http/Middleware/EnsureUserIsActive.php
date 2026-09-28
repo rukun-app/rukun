@@ -18,6 +18,10 @@ class EnsureUserIsActive
             return ApiResponse::error(__('api.auth.suspended'), 403, code: 'auth.suspended');
         }
 
+        if ($request->user()->must_change_password && ! $request->routeIs('api.auth.me', 'api.auth.password', 'api.auth.logout', 'api.auth.logout-all')) {
+            return ApiResponse::error(__('api.auth.password_change_required'), 403, code: 'auth.password_change_required');
+        }
+
         return $next($request);
     }
 }

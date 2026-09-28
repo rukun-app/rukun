@@ -6,17 +6,17 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 
 ## Implementasi Rukun
 
-Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0 sedang dikerjakan; F1–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
+Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0 lokal dan F1 selesai; F2–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
 
-Template `.env.example` menggunakan database `laravel_rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Template bukan bukti resource sudah diprovisikan.
+Template `.env.example` menggunakan database `rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Database development/testing dan bucket sudah diprovisikan; health HTTPS serta uji tulis/baca object storage lulus.
 
-`.env` dan `.env.testing` lokal sudah dibuat dari template Rukun dengan credential infrastruktur bersama dari `../core-r`. Keduanya diabaikan Git dan memiliki permission `0600`; APP_KEY development/testing serta credential Reverb dibuat baru. Credential Midtrans tidak disalin dan integrasinya tetap nonaktif. Database `laravel_rukun` dan bucket `rukun` masih perlu diverifikasi/diprovisikan. Aturan command/testing di `AGENTS.md` masih menunjuk Core R dan sedang menunggu penyelarasan; jangan menjalankan migration atau test Rukun terhadap aplikasi/database development Core R. Redis testing tetap 13–15 dengan prefix khusus `rukun-test:`. Credential hanya disimpan dalam environment lokal yang diabaikan Git.
+`.env` dan `.env.testing` lokal sudah dibuat dari template Rukun dengan credential infrastruktur bersama dari `../core-r`. Keduanya diabaikan Git dan memiliki permission `0600`; APP_KEY development/testing serta credential Reverb dibuat baru. Credential Midtrans tidak disalin dan integrasinya tetap nonaktif. Database `rukun` / `rukun_test`, PHPUnit, CI, dan `AGENTS.md` sudah diselaraskan. Jalankan Composer/Artisan/Pest/Pint di `dev-php85` dengan working directory `/var/www/p85/rukun`; jangan memakai database Core R untuk test Rukun. Redis testing tetap 13–15 dengan prefix khusus `rukun-test:`. Credential hanya disimpan dalam environment lokal yang diabaikan Git.
 
 Remote existing: `origin` adalah `git@github.com:rukun-app/rukun.git`; `upstream` adalah `git@github.com:RezaRiyaldi/core-r.git` dengan push dinonaktifkan. Pembaruan foundation dilakukan pada branch khusus melalui `git fetch upstream` dan `git merge upstream/main`, kemudian review migration/config/conflict dan jalankan seluruh quality gate sebelum merge ke branch utama.
 
 Untuk staging, siapkan HTTPS, `APP_DEBUG=false`, `LOG_CHANNEL=json`, `TELESCOPE_ENABLED=false`, secret melalui environment, dan bucket private khusus environment. Backup harus mencakup PostgreSQL, object storage, serta penyimpanan aman encryption key secara terpisah. Tentukan jadwal/retention dan target pemulihan sebelum pilot. Restore dump dan object ke environment staging terisolasi, lalu verifikasi health, login, akses file, dan rekonsiliasi data; catat waktu serta hasilnya pada log F0. **Backup/restore staging belum diuji.**
 
-Bagian operasional berikut masih memuat referensi baseline Core R selama F0 berlangsung. Gunakan status F0 di atas untuk membedakan panduan baseline dan environment Rukun yang sudah diverifikasi.
+Verifikasi baseline F0 lokal 28 September 2026: **96 test / 549 assertions**, Pint, OpenAPI (49 paths / 59 operations), secret scan, HTTPS health, MinIO private write/read/delete, job melalui worker Rukun, dan scheduler heartbeat lulus. Pengiriman email probe ke MailDev lokal berhasil dan hasilnya diperiksa melalui API MailDev. Dump/restore PostgreSQL lokal ke database sementara lulus dan database rehearsal sudah dihapus; ini belum menggantikan uji staging. Admin development `admin@rukun.test` telah dibuat; login dan `/api/auth/me` lulus melalui HTTPS, kemudian token probe dicabut. Credential bootstrap tersimpan di `storage/app/private/bootstrap-admin.json` (Git ignored, mode `0600`); akun lokal ini sudah ditandai wajib mengganti password, lalu hapus file tersebut. CI GitHub dan backup/restore staging tetap wajib sebelum production pilot, tetapi sesuai arahan pengguna tidak menghalangi development F1.
 
 ## Daftar isi
 
@@ -67,151 +67,23 @@ Bagian operasional berikut masih memuat referensi baseline Core R selama F0 berl
 | V2.8C: Payment Foundation | Selesai | Checkout API idempotent, Midtrans Snap, callback dan test notification terverifikasi, redirect `en`/`id`, audit, dan realtime event |
 | V2.9: Runtime Settings Governance | Selesai | Database override, fallback environment, default kode, metadata group/type/source, dan reset override |
 | Roadmap V2 lanjutan | Direncanakan | Webhook keluar generik; lihat [`plan-v2.md`](plan-v2.md) |
-| Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
+| Rukun F1 | Selesai | Identity email/HP, provisioning/recovery scoped, RW/RT, dan temporal role assignment; lihat `plan-be.md` |
 
-Verifikasi terakhir: **96 test lulus dengan 549 assertions** dan Laravel Pint lulus pada PHP 8.5.
+Verifikasi terakhir setelah F1: **116 test lulus dengan 686 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**56 paths / 70 operations**), dan secret scan lulus pada PHP 8.5.
 
 ## Memulai proyek baru
 
-Gunakan repository ini sebagai baseline sebelum menambahkan modul bisnis. Buat repository atau working copy baru, kemudian ubah identitas dan isolasi resource proyek sebelum migration pertama dijalankan.
+Repository ini sudah menjadi proyek Rukun. Untuk instalasi working copy Rukun baru, ikuti [Instalasi lokal](#instalasi-lokal). Pertahankan Core R sebagai upstream read-only; jangan menghapus Git history atau mengganti prefix tabel foundation `rcore_`.
 
-### 1. Buat repository GitHub baru
-
-Pastikan versi boilerplate yang ingin dipakai sudah di-commit dan tersedia pada branch atau tag Core R. Buat repository tujuan dalam keadaan kosong di GitHub tanpa README, `.gitignore`, atau license tambahan.
-
-#### Pilihan A — clone dengan history Core R
-
-Pilihan ini direkomendasikan jika proyek baru ingin tetap dapat mengambil perbaikan boilerplate dari Core R. Jalankan perintah dari direktori induk, bukan dari working copy Core R yang sedang dikembangkan:
-
-```sh
-cd /path/ke/direktori-project
-git clone https://github.com/RezaRiyaldi/core-r.git nama-project-baru
-cd nama-project-baru
-
-# Simpan Core R sebagai upstream dan cegah push tidak sengaja ke sana.
-git remote rename origin upstream
-git remote set-url --push upstream no_push
-
-# Hubungkan repository GitHub kosong milik proyek baru.
-git remote add origin git@github.com:YOUR_GITHUB_USER/nama-project-baru.git
-git remote -v
-git push -u origin main
-```
-
-| Remote | Fungsi |
-|---|---|
-| `origin` | Repository proyek baru dan tujuan push sehari-hari |
-| `upstream` | Repository Core R yang hanya dipakai untuk mengambil pembaruan boilerplate |
-
-Untuk mengambil pembaruan Core R kemudian hari:
+Pembaruan upstream dilakukan pada branch khusus:
 
 ```sh
 git fetch upstream
-git log --oneline main..upstream/main
+git switch -c chore/update-core-r
 git merge upstream/main
 ```
 
-Lakukan merge pada branch khusus. Review migration, config, seeder, dan conflict dengan modul bisnis sebelum menggabungkannya ke `main`.
-
-#### Pilihan B — proyek dengan history Git baru
-
-Gunakan pilihan ini jika proyek hanya mengambil snapshot Core R dan tidak perlu mempertahankan commit history boilerplate:
-
-```sh
-cd /path/ke/direktori-project
-git clone --depth 1 https://github.com/RezaRiyaldi/core-r.git nama-project-baru
-cd nama-project-baru
-
-# Aman hanya karena dijalankan pada clone baru.
-rm -rf .git
-git init -b main
-git add .
-git commit -m "chore: initialize project from Core R boilerplate"
-git remote add origin git@github.com:YOUR_GITHUB_USER/nama-project-baru.git
-git push -u origin main
-```
-
-Setelah `.git` dihapus, proyek tidak memiliki hubungan Git dengan Core R. Pembaruan boilerplate berikutnya perlu dipindahkan manual atau melalui patch.
-
-#### Pilihan C — GitHub Template Repository
-
-Jika opsi **Template repository** sudah diaktifkan pada pengaturan GitHub Core R, klik **Use this template → Create a new repository**. GitHub membuat repository baru tanpa menjadikannya fork. Clone repository baru tersebut, lalu lanjutkan penggantian identitas di bawah.
-
-Jangan menjalankan perubahan remote atau `rm -rf .git` di direktori Core R asli. Selalu pastikan lokasi dan remote sebelum push:
-
-```sh
-pwd
-git remote -v
-git status
-```
-
-### 2. Ganti identitas proyek
-
-| Bagian | Contoh Core R | Nilai proyek baru |
-|---|---|---|
-| `APP_NAME` | `CoreR` | Nama aplikasi baru |
-| `APP_URL` / `FRONTEND_URL` | `core-r.p85.test` | Host proyek baru |
-| Database development/testing | `laravel_core` / `laravel_core_test` | Database khusus proyek |
-| `CORE_DB_PREFIX` | `rcore_` | Prefix core yang unik dan stabil |
-| `REDIS_PREFIX` | `core-r:` | Prefix unik proyek |
-| Redis DB development | `0`, `1`, `2` | Indeks yang tidak dipakai proyek lain |
-| Redis DB testing | `13`, `14`, `15` | Indeks testing yang terisolasi |
-| Bucket MinIO | Milik Core R | Bucket khusus proyek |
-| Container job/realtime | `core-r-*` | Nama service khusus proyek |
-| Reverb credential/origin | Milik Core R | Credential dan host baru |
-
-Cari sisa identitas lama sebelum mulai coding:
-
-```sh
-rg -n "Core R|CoreR|core-r|laravel_core|rcore_" --glob '!vendor/**'
-```
-
-Pertahankan prefix tabel core untuk Identity, RBAC, Settings, Audit, Files, Notifications, Realtime, dan Payments. Migration serta model modul bisnis memakai connection `pgsql` tanpa prefix core.
-
-### 3. Buat environment lokal
-
-```sh
-cp .env.example .env
-cp .env.testing.example .env.testing
-
-docker exec -w /var/www/p85/core-r dev-php85 composer install
-docker exec -w /var/www/p85/core-r dev-php85 php artisan key:generate
-docker exec -w /var/www/p85/core-r dev-php85 php artisan key:generate --env=testing
-```
-
-Sesuaikan path `/var/www/p85/core-r` dengan mount proyek baru. Isi credential hanya di `.env` lokal. Buat database development, database testing, serta bucket object storage yang terpisah.
-
-### 4. Inisialisasi aplikasi
-
-```sh
-docker exec -w /var/www/p85/core-r dev-php85 php artisan migrate
-docker exec -w /var/www/p85/core-r dev-php85 php artisan db:seed --class=Database\\Seeders\\RbacSeeder
-docker exec -it -w /var/www/p85/core-r dev-php85 php artisan identity:bootstrap-admin admin@example.com --name="Administrator"
-docker compose -f compose.jobs.yml up -d
-```
-
-Aktifkan `compose.realtime.yml` hanya jika proyek memakai WebSocket. Polling durable tetap tersedia ketika Reverb dinonaktifkan.
-
-### 5. Gate sebelum modul bisnis
-
-- `/api/health` menunjukkan PostgreSQL dan Redis `up`.
-- Swagger dapat dibuka dan login administrator berhasil.
-- Upload/download MinIO, session Redis, queue, scheduler, dan MailDev telah diuji.
-- Database dan indeks Redis testing berbeda dari development.
-- `php artisan test`, Pint, generator OpenAPI, dan pemeriksaan secret lulus.
-- Tidak ada credential, URL tunnel sementara, atau token administrator yang terlacak Git.
-- Remote `origin` mengarah ke repository proyek baru dan push branch `main` berhasil.
-- Workflow GitHub Actions **Quality Gate** lulus pada repository baru.
-
-Setelah push pertama, aktifkan branch protection untuk `main` dan wajibkan check **PHP 8.5 / PostgreSQL 16 / Redis 7**. Jika nama database, prefix tabel, atau prefix Redis testing diubah, selaraskan environment pada [workflow quality](.github/workflows/quality.yml) sebelum menjadikannya required check.
-
-### 6. Mulai modul bisnis
-
-```sh
-docker exec -w /var/www/p85/core-r dev-php85 php artisan make:module Billing
-```
-
-Modul bisnis memiliki migration, model, policy/permission, service, API, audit event, translation `en`/`id`, OpenAPI, dan Feature test sendiri. Harga pembayaran dihitung dari order/invoice di server. Modul lalu memanggil `PaymentManager`; client tidak menjadi sumber nominal yang dipercaya.
+Review migration, konfigurasi, dan conflict terhadap domain Rukun, lalu jalankan Pest, Pint, OpenAPI validation, serta secret scan sebelum merge ke branch utama.
 
 ## Teknologi dan struktur
 
@@ -241,17 +113,17 @@ Modul bisnis memiliki migration, model, policy/permission, service, API, audit e
 | `Modules/Payments/` | Checkout API, payment contract, Midtrans Snap, callback, redirect, dan status event |
 | `Modules/Example/` | Contoh struktur modul |
 | `tests/Feature/` | Test API, infrastruktur, auth, RBAC, settings, dan modul |
-| `compose.jobs.yml` | Worker dan scheduler Core R |
-| `compose.realtime.yml` | Server Reverb opsional khusus Core R |
+| `compose.jobs.yml` | Worker dan scheduler Rukun |
+| `compose.realtime.yml` | Server Reverb opsional khusus Rukun |
 
 ## Instalasi lokal
 
 Prasyarat:
 
-- Container PHP `dev-php85` memasang source di `/var/www/p85/core-r`.
+- Container PHP `dev-php85` memasang source di `/var/www/p85/rukun`.
 - Network eksternal `docker-network` memiliki alias `postgres`, `redis`, `maildev`, dan `minio`.
-- Database `laravel_core` dan `laravel_core_test` sudah dibuat.
-- Bucket MinIO tersedia dan host `core-r.p85.test` diarahkan ke mesin development.
+- Database `rukun` dan `rukun_test` sudah dibuat.
+- Bucket MinIO tersedia dan host `rukun.p85.test` diarahkan ke mesin development.
 
 Salin dan isi environment lokal. Jangan commit kredensial nyata.
 
@@ -259,17 +131,17 @@ Salin dan isi environment lokal. Jangan commit kredensial nyata.
 cp .env.example .env
 cp .env.testing.example .env.testing
 
-docker exec -w /var/www/p85/core-r dev-php85 composer install
-docker exec -w /var/www/p85/core-r dev-php85 php artisan key:generate
-docker exec -w /var/www/p85/core-r dev-php85 php artisan key:generate --env=testing
-docker exec -w /var/www/p85/core-r dev-php85 php artisan migrate
-docker exec -w /var/www/p85/core-r dev-php85 php artisan db:seed --class=Database\\Seeders\\RbacSeeder
+docker exec -w /var/www/p85/rukun dev-php85 composer install
+docker exec -w /var/www/p85/rukun dev-php85 php artisan key:generate
+docker exec -w /var/www/p85/rukun dev-php85 php artisan key:generate --env=testing
+docker exec -w /var/www/p85/rukun dev-php85 php artisan migrate
+docker exec -w /var/www/p85/rukun dev-php85 php artisan db:seed --no-interaction
 ```
 
 Buat administrator pertama:
 
 ```sh
-docker exec -it -w /var/www/p85/core-r dev-php85 php artisan identity:bootstrap-admin admin@example.com --name="Administrator"
+docker exec -it -w /var/www/p85/rukun dev-php85 php artisan identity:bootstrap-admin admin@example.com --name="Administrator"
 ```
 
 Akun bootstrap dibuat aktif, terverifikasi, dan memiliki role `super-admin`. Command menolak bootstrap kedua jika role itu sudah dimiliki user lain.
@@ -278,11 +150,11 @@ Akun bootstrap dibuat aktif, terverifikasi, dan memiliki role `super-admin`. Com
 
 | Layanan | Alamat |
 |---|---|
-| Aplikasi | `https://core-r.p85.test:8443` |
-| Health | `https://core-r.p85.test:8443/api/health` |
-| Swagger | `https://core-r.p85.test:8443/docs/api` |
-| OpenAPI JSON | `https://core-r.p85.test:8443/docs/api/openapi.json` |
-| Telescope | `https://core-r.p85.test:8443/telescope` |
+| Aplikasi | `https://rukun.p85.test:8443` |
+| Health | `https://rukun.p85.test:8443/api/health` |
+| Swagger | `https://rukun.p85.test:8443/docs/api` |
+| OpenAPI JSON | `https://rukun.p85.test:8443/docs/api/openapi.json` |
+| Telescope | `https://rukun.p85.test:8443/telescope` |
 
 Jalankan proses background khusus proyek:
 
@@ -306,13 +178,13 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 
 | Variable | Fungsi | Development |
 |---|---|---|
-| `APP_URL` | URL backend | `https://core-r.p85.test:8443` |
-| `DB_*` | PostgreSQL | Connection `core`, host `postgres`, DB `laravel_core` |
+| `APP_URL` | URL backend | `https://rukun.p85.test:8443` |
+| `DB_*` | PostgreSQL | Connection `core`, host `postgres`, DB `rukun` |
 | `CORE_DB_PREFIX` | Prefix tabel boilerplate | `rcore_` |
-| `REDIS_PREFIX` | Isolasi key | `core-r:` |
-| `REDIS_CACHE_DB` | Cache | `0` |
-| `REDIS_QUEUE_DB` | Queue | `1` |
-| `REDIS_SESSION_DB` | Session | `2` |
+| `REDIS_PREFIX` | Isolasi key | `rukun:` |
+| `REDIS_CACHE_DB` | Cache | `3` |
+| `REDIS_QUEUE_DB` | Queue | `4` |
+| `REDIS_SESSION_DB` | Session | `5` |
 | `MAIL_HOST`, `MAIL_PORT` | SMTP | `maildev`, `1025` |
 | `FILESYSTEM_DISK` | Storage | `s3` |
 | `AWS_*` | MinIO | Endpoint `http://minio:9000` |
@@ -331,17 +203,17 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 
 | Resource | Development | Testing |
 |---|---|---|
-| PostgreSQL | `laravel_core` | `laravel_core_test` |
-| Redis cache | DB `0` | DB `13` |
-| Redis default/queue | DB `1` | DB `14` |
-| Redis session | DB `2` | DB `15` |
-| Redis prefix | `core-r:` | Prefix testing terpisah |
+| PostgreSQL | `rukun` | `rukun_test` |
+| Redis cache | DB `3` | DB `13` |
+| Redis default/queue | DB `4` | DB `14` |
+| Redis session | DB `5` | DB `15` |
+| Redis prefix | `rukun:` | Prefix testing terpisah |
 
-`RefreshDatabase` hanya boleh berjalan pada `laravel_core_test`. Composer, Artisan, Pest, dan Pint harus dijalankan di container PHP 8.5.
+`RefreshDatabase` hanya boleh berjalan pada `rukun_test`. Composer, Artisan, Pest, dan Pint harus dijalankan di container PHP 8.5.
 
 ## Identity dan token
 
-Login menerima `email`, `password`, dan `device_name`, lalu mengembalikan Sanctum Bearer token. Client mengirim token melalui `Authorization: Bearer <token>`.
+Login menerima `identifier` (email atau HP Indonesia), `password`, dan `device_name`, lalu mengembalikan Sanctum Bearer token. Field legacy `email` masih diterima sebagai alternatif `identifier`; mengirim keduanya ditolak. Client mengirim token melalui `Authorization: Bearer <token>`.
 
 | Kebijakan | Perilaku |
 |---|---|
@@ -355,6 +227,34 @@ Login menerima `email`, `password`, dan `device_name`, lalu mengembalikan Sanctu
 | Token expiration | Mengikuti `auth.token_expiration_days` saat token dibuat |
 
 User dapat melihat token atau perangkat melalui `GET /api/auth/tokens` dan mencabut token miliknya melalui `DELETE /api/auth/tokens/{token}`.
+
+## Community: area dan pengelolaan akun (F1)
+
+Modul `Modules/Community` menyediakan RW/RT, assignment pengurus, dan provisioning/recovery akun. Semua ID resource pada endpoint baru berupa UUID publik. `User`, `Resident`, dan `Household` tetap berbeda: Resident/Household serta importer warga dibuat di F2.
+
+| Method | Endpoint | Akses / perilaku |
+|---|---|---|
+| GET / POST | `/api/community/areas` | Daftar cursor dalam scope / buat RW atau RT |
+| GET / PATCH / DELETE | `/api/community/areas/{area}` | Permission `areas.view` / `areas.manage` dan scope |
+| GET / POST | `/api/community/role-assignments` | Global `users.assign-roles`; assignment dengan periode berlaku |
+| DELETE | `/api/community/role-assignments/{assignment}` | Revoke; histori tetap disimpan |
+| POST | `/api/community/accounts` | `accounts.provision` pada RT; `Idempotency-Key` wajib |
+| POST | `/api/community/accounts/{user}/recover` | `users.recover-account` pada RT akun; `Idempotency-Key` wajib |
+| GET | `/api/community/credentials/{operation}` | Download credential satu kali, hanya pembuat yang masih berwenang |
+
+RW dibuat dengan `kind=rw`, `code`, dan `name`; RT menggunakan `kind=rt` serta `parent_id` UUID RW. PATCH hanya menerima `code`/`name`. Hierarki tidak dipindahkan melalui CRUD generik; delete ditolak jika area masih direferensikan. List memakai `per_page` 1–100 dan `cursor`. Create area/assignment mendukung header idempotency opsional.
+
+Assignment menerima `user_id` UUID, `role` nama role, `scope_type=global|rw|rt`, `area_id` sesuai scope (kosong untuk global), `starts_at`, dan `ends_at` opsional. Scope RW mencakup child RT; scope RT tidak mencakup RT lain. Assignment masa depan, kedaluwarsa, dan revoked tidak memberi akses. Role scoped tidak ditempelkan ke relasi role global Core. Permission Core pada akun tetap bersifat global; jangan memberi role pengurus melalui endpoint role global jika akses yang dimaksud hanya RT/RW. Seeder `DatabaseSeeder` memanggil RBAC Core lalu `CommunitySeeder`; jalankan keduanya melalui `php artisan db:seed` agar permission Community tidak hilang saat sinkronisasi role Core.
+
+Provisioning menerima `name`, `area_id` UUID RT, minimal `email` atau `phone`, serta `locale=id|en` opsional. Email dinormalisasi lowercase; nomor HP `08…`, `628…`, dan `+628…` menjadi `+628…`. F1 mendukung nomor HP Indonesia; OTP belum digunakan. Akun yang memiliki email tetap mengikuti aturan verifikasi email Core dan dapat meminta link melalui `/api/auth/email/resend` sebelum login pertama.
+
+Server membuat password awal acak 24 karakter dan `must_change_password=true`. Response provisioning/recovery berisi UUID operasi/akun, `credential_url`, dan expiry; tidak berisi password. Download menghasilkan JSON `{user_id, initial_password}` dengan `Cache-Control: private, no-store`. Output terenkripsi di Redis, berlaku 15 menit, hanya dapat diambil sekali, dan ditolak jika ada recovery lebih baru. Response yang sudah diunduh tidak dapat diulang; gunakan recovery baru jika distribusi gagal. Password plaintext tidak disimpan pada tabel, audit, atau response cache idempotency. Recovery selalu mencabut token dan reset link lama. Pada F1, akun dengan permission global atau assignment berstatus aktif dilindungi dari recovery administratif; self-recovery juga ditolak. Kebijakan untuk anggota household dengan capability khusus diperluas di F2.
+
+Saat `must_change_password=true`, akses authenticated hanya tersedia untuk `/api/auth/me`, `/api/auth/password`, `/api/auth/logout`, dan `/api/auth/logout-all`; endpoint lain mengembalikan `auth.password_change_required`. Password baru harus berbeda. Reset email yang sah menghapus flag tersebut dan mencabut seluruh token. Pemilihan role keluarga tidak memberikan hak recovery; household-assisted recovery baru ditambahkan bersama Household/Membership di F2.
+
+Tabel `areas`, `role_assignments`, `account_scopes`, dan `account_operations` memakai koneksi PostgreSQL `rukun` tanpa prefix, menuju database fisik yang sama dengan koneksi `core`. Tabel foundation tetap `rcore_*`. Service provisioning dan adapter audit Community memakai **satu transaksi pada koneksi `rukun`**, termasuk akses eksplisit tabel Identity Core, agar user, scope, pencabutan token, dan audit commit/rollback bersama. Jangan membungkus service ini dalam transaksi koneksi `core` yang berbeda. Feature test Community memakai `DatabaseMigrations` agar tidak menyembunyikan visibilitas antar-koneksi di dalam transaksi test Core.
+
+`account_scopes` adalah scope administratif akun, bukan relasi warga atau keluarga. F2 harus mengintegrasikan scope ini dengan Resident/Household, import `create_account`, dan histori mutasi. Scope HOUSEHOLD/VENDOR serta capability household recovery tetap pekerjaan F2.
 
 ## Multilingual API
 
@@ -604,7 +504,7 @@ Endpoint koleksi memakai cursor pagination. `per_page` default `20`, minimum `1`
 Swagger memakai OpenAPI 3.1 dan aset lokal. Generate artefak statis:
 
 ```sh
-docker exec -w /var/www/p85/core-r dev-php85 php artisan api-docs:generate
+docker exec -w /var/www/p85/rukun dev-php85 php artisan api-docs:generate
 ```
 
 Output berada di `storage/app/api-docs/openapi.json` dan tidak perlu di-commit. Endpoint baru wajib memiliki operation ID, summary, tag, security, parameter, request body, response, contoh, dan test dokumentasi. Gunakan `API_DOCS_ENABLED=false` untuk menyembunyikan dokumentasi.
@@ -615,8 +515,8 @@ Telescope merekam request/response, query, cache, Redis, job, mail, notification
 
 | Service | Fungsi |
 |---|---|
-| `core-r-queue` | Memproses queue `high,default,low` |
-| `core-r-scheduler` | Menjalankan scheduler setiap 60 detik |
+| `rukun-queue` | Memproses queue `high,default,low` |
+| `rukun-scheduler` | Menjalankan scheduler setiap 60 detik |
 
 | Jadwal | Command | Fungsi |
 |---|---|---|
@@ -702,7 +602,7 @@ Nilai tersebut dapat diubah melalui variable `RATE_LIMIT_*` di environment. Sete
 Workflow [`.github/workflows/quality.yml`](.github/workflows/quality.yml) berjalan pada pull request dan push ke `main`. Runner membuat PostgreSQL 16 dan Redis 7 disposable, memasang dependency sesuai `composer.lock`, lalu menjalankan gate berikut secara berurutan:
 
 1. Menolak file `.env` lokal, private key, atau pola AWS access key yang terlacak Git.
-2. Menjalankan migration pada database `laravel_core_test` milik runner.
+2. Menjalankan migration pada database `rukun_test` milik runner.
 3. Menjalankan seluruh Pest test.
 4. Menjalankan Laravel Pint dalam mode pemeriksaan.
 5. Menghasilkan OpenAPI JSON dan memvalidasi versi, metadata, operation ID unik, response, serta referensi schema.
@@ -713,10 +613,10 @@ Sebelum merge, branch protection sebaiknya mewajibkan check **PHP 8.5 / PostgreS
 
 ```sh
 bash scripts/ci/check-secrets.sh
-docker exec -w /var/www/p85/core-r dev-php85 php artisan test
-docker exec -w /var/www/p85/core-r dev-php85 vendor/bin/pint --test
-docker exec -w /var/www/p85/core-r dev-php85 php artisan api-docs:generate --output=storage/framework/ci-openapi.json
-docker exec -w /var/www/p85/core-r dev-php85 php scripts/ci/validate-openapi.php storage/framework/ci-openapi.json
+docker exec -w /var/www/p85/rukun dev-php85 php artisan test
+docker exec -w /var/www/p85/rukun dev-php85 vendor/bin/pint --test
+docker exec -w /var/www/p85/rukun dev-php85 php artisan api-docs:generate --output=storage/framework/ci-openapi.json
+docker exec -w /var/www/p85/rukun dev-php85 php scripts/ci/validate-openapi.php storage/framework/ci-openapi.json
 ```
 
 ## Import dan export
@@ -831,7 +731,7 @@ Respons `201` berisi `id`, status `pending`, dan `checkout_url` Midtrans. Pada m
 Buat modul:
 
 ```sh
-docker exec -w /var/www/p85/core-r dev-php85 php artisan make:module Billing
+docker exec -w /var/www/p85/rukun dev-php85 php artisan make:module Billing
 ```
 
 Provider dan route modul dimuat melalui `Core/Providers/ModuleServiceProvider.php`. Modul baru perlu menambahkan migration, permission, audit, OpenAPI, dan Feature test sesuai kebutuhannya.
@@ -841,8 +741,8 @@ Tabel boilerplate memakai connection `core`, yang mengarah ke PostgreSQL yang sa
 ## Testing
 
 ```sh
-docker exec -w /var/www/p85/core-r dev-php85 php artisan test
-docker exec -w /var/www/p85/core-r dev-php85 vendor/bin/pint --test
+docker exec -w /var/www/p85/rukun dev-php85 php artisan test
+docker exec -w /var/www/p85/rukun dev-php85 vendor/bin/pint --test
 ```
 
 Test mencakup isolasi PostgreSQL/Redis, health, response API, module system, queue, scheduler, identity, token ownership, RBAC, concurrency, admin protection, user filters, cursor pagination, settings, audit, Swagger, Telescope, idempotency, dan rate limiting.

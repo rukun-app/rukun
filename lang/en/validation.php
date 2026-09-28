@@ -197,6 +197,6 @@ return [
     |
     */
 
-    'attributes' => [],
+    'attributes' => ['identifier' => 'login identifier', 'phone' => 'phone number'],
 
 ];
