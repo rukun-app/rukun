@@ -14,6 +14,7 @@ return [
         : null,
     'event_retention_days' => env('REALTIME_EVENT_RETENTION_DAYS'),
     'failed_job_retention_hours' => env('OPS_FAILED_JOB_RETENTION_HOURS'),
+    'data_transfer_retention_days' => env('DATA_TRANSFER_RETENTION_DAYS'),
     'idempotency_ttl_hours' => env('API_IDEMPOTENCY_TTL_HOURS'),
     'rate_limits' => [
         'auth_register' => env('RATE_LIMIT_AUTH_REGISTER'),

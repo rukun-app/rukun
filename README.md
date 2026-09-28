@@ -25,6 +25,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 - [Operational reliability](#operational-reliability)
 - [API reliability dan protection](#api-reliability-dan-protection)
 - [Automated quality gate](#automated-quality-gate)
+- [Import dan export](#import-dan-export)
 - [Payment foundation](#payment-foundation)
 - [Module system](#module-system)
 - [Testing](#testing)
@@ -48,12 +49,13 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 | V2.5: Operational Reliability | Selesai | Request ID, correlation context, JSON logging, redaction, job policy, failed job summary, dan pruning |
 | V2.6: API Reliability & Protection | Selesai | Idempotency key untuk operasi create dan named Redis rate limiter per kelompok endpoint |
 | V2.7: Automated Quality Gate | Selesai | GitHub Actions dengan PHP 8.5, PostgreSQL 16, Redis 7, Pest, Pint, OpenAPI, dan pemeriksaan secret |
+| V2.8B: Import/Export Foundation | Selesai | Registry handler, CSV/XLSX async, progress, error per baris, cancel, private output, realtime, dan retention |
 | V2.8C: Payment Foundation | Selesai | Checkout API idempotent, Midtrans Snap, callback dan test notification terverifikasi, redirect `en`/`id`, audit, dan realtime event |
 | V2.9: Runtime Settings Governance | Selesai | Database override, fallback environment, default kode, metadata group/type/source, dan reset override |
-| Roadmap V2 lanjutan | Direncanakan | Webhook umum dan import/export foundation; lihat [`plan-v2.md`](plan-v2.md) |
+| Roadmap V2 lanjutan | Direncanakan | Webhook keluar generik; lihat [`plan-v2.md`](plan-v2.md) |
 | Modul bisnis | Belum dimulai | Dimulai setelah fase fondasi V2 yang dibutuhkan selesai |
 
-Verifikasi terakhir: **90 test lulus dengan 490 assertions** dan Laravel Pint lulus pada PHP 8.5.
+Verifikasi terakhir: **96 test lulus dengan 549 assertions** dan Laravel Pint lulus pada PHP 8.5.
 
 ## Memulai proyek baru
 
@@ -221,6 +223,7 @@ Modul bisnis memiliki migration, model, policy/permission, service, API, audit e
 | `Modules/Access/` | User, role, dan permission administration |
 | `Modules/Settings/` | Registry dan penyimpanan settings |
 | `Modules/Realtime/` | Durable event stream, polling, dan WebSocket publisher |
+| `Modules/DataTransfer/` | Orchestration import/export CSV/XLSX, handler registry, progress, cancel, dan cleanup |
 | `Modules/Payments/` | Checkout API, payment contract, Midtrans Snap, callback, redirect, dan status event |
 | `Modules/Example/` | Contoh struktur modul |
 | `tests/Feature/` | Test API, infrastruktur, auth, RBAC, settings, dan modul |
@@ -310,6 +313,7 @@ Health check membedakan PostgreSQL dan Redis sebagai layanan wajib, serta storag
 | `PAYMENT_GATEWAY` | Adapter pembayaran aktif | `midtrans` |
 | `MIDTRANS_*` | Mode, credential, endpoint override, dan timeout Midtrans | Credential hanya pada environment lokal |
 | `PAYMENT_REDIRECT_BASE_URL` | Origin HTTPS halaman finish/unfinish/error | Fallback ke `APP_URL` |
+| `DATA_TRANSFER_RETENTION_DAYS` | Retensi transfer terminal dan export yang dihasilkan | `30` |
 
 | Resource | Development | Testing |
 |---|---|---|
@@ -398,6 +402,9 @@ Role tersimpan secara dinamis. Controller memeriksa permission `resource.action`
 | `files.delete-any` | Menghapus file milik user lain |
 | `payments.view-any` | Melihat status pembayaran milik user lain |
 | `payments.create` | Membuat checkout pembayaran generik untuk pengujian atau integrasi administratif |
+| `data-transfers.create` | Memulai import dan export yang handler-nya sudah terdaftar |
+| `data-transfers.view-any` | Melihat transfer milik user lain |
+| `data-transfers.cancel-any` | Membatalkan transfer milik user lain |
 
 | Role bawaan | Akses |
 |---|---|
@@ -429,7 +436,7 @@ Definisi settings berada di `Modules/Settings/SettingsRegistry.php`. Nilai datab
 | `auth.token_expiration_days` | integer | `30` | Tidak | Masa berlaku token baru |
 | `auth.max_login_attempts` | integer | `5` | Tidak | Batas percobaan login |
 | `files.max_upload_mb` | integer | `10` | Tidak | Batas ukuran upload |
-| `files.allowed_mime_types` | array | PDF, JPEG, PNG, WebP, text | Tidak | MIME type yang diizinkan |
+| `files.allowed_mime_types` | array | PDF, JPEG, PNG, WebP, text, CSV, XLSX | Tidak | MIME type yang diizinkan |
 | `realtime.event_retention_days` | integer | `7` | Tidak | Retensi durable event untuk polling |
 | `ops.failed_job_retention_hours` | integer | `168` | Tidak | Retensi failed queue job untuk inspeksi |
 | `api.idempotency_ttl_hours` | integer | `24` | Tidak | Masa simpan hasil operasi idempotent, 1-168 jam |
@@ -536,6 +543,17 @@ Audit mendukung filter `event`, `actor_id`, `per_page`, dan `cursor`. Detail req
 
 Ketiga halaman redirect hanya memberi informasi kepada pengguna. Perubahan status tetap berasal dari webhook yang tervalidasi atau status API provider.
 
+### Import dan export
+
+| Method | Endpoint | Akses | Fungsi |
+|---|---|---|---|
+| `GET` | `/api/data-transfers/types` | Bearer | Handler dan kolom yang terdaftar |
+| `GET` | `/api/data-transfers` | Owner | Riwayat transfer dengan cursor pagination |
+| `POST` | `/api/data-transfers/exports` | `data-transfers.create` | Antrekan export CSV; `Idempotency-Key` wajib |
+| `POST` | `/api/data-transfers/imports` | `data-transfers.create` | Antrekan import CSV private; `Idempotency-Key` wajib |
+| `GET` | `/api/data-transfers/{dataTransfer}` | Owner / `data-transfers.view-any` | Progress, hasil, dan ringkasan error |
+| `POST` | `/api/data-transfers/{dataTransfer}/cancel` | Owner / `data-transfers.cancel-any` | Membatalkan transfer aktif |
+
 ## Standar API
 
 Response sukses:
@@ -593,6 +611,7 @@ Telescope merekam request/response, query, cache, Redis, job, mail, notification
 | Harian 02:00 | `telescope:prune --hours=48` | Bersihkan data Telescope lama |
 | Harian 02:15 | `realtime:prune-events` | Bersihkan durable event yang melewati retensi |
 | Harian 02:30 | `core:prune-failed-jobs` | Bersihkan failed job sesuai setting retensi |
+| Harian 02:45 | `data-transfers:prune` | Bersihkan transfer terminal dan file export kedaluwarsa |
 
 Service menggunakan PHP 8.5 dan `docker-network`; layanan infrastruktur bersama tidak diubah.
 
@@ -639,7 +658,7 @@ Default retensi failed job adalah 168 jam. Payload dan exception trace hanya dip
 
 ## API reliability dan protection
 
-`POST /api/files` dan `POST /api/users` menerima header opsional `Idempotency-Key`. `POST /api/payments` mewajibkan header tersebut karena retry checkout tidak boleh membuat transaksi provider ganda. Gunakan nilai unik 8-128 karakter untuk satu operasi logis dan kirim nilai yang sama ketika request perlu diulang.
+`POST /api/files` dan `POST /api/users` menerima header opsional `Idempotency-Key`. Pembuatan payment serta import/export mewajibkan header tersebut karena retry tidak boleh membuat transaksi provider atau job transfer ganda. Gunakan nilai unik 8-128 karakter untuk satu operasi logis dan kirim nilai yang sama ketika request perlu diulang.
 
 | Kondisi | Hasil |
 |---|---|
@@ -685,6 +704,45 @@ docker exec -w /var/www/p85/core-r dev-php85 vendor/bin/pint --test
 docker exec -w /var/www/p85/core-r dev-php85 php artisan api-docs:generate --output=storage/framework/ci-openapi.json
 docker exec -w /var/www/p85/core-r dev-php85 php scripts/ci/validate-openapi.php storage/framework/ci-openapi.json
 ```
+
+## Import dan export
+
+Module `DataTransfer` menyediakan orchestration CSV dan XLSX asynchronous. Core menangani lifecycle job, file private, progress, error summary, cancellation, audit, realtime event, dan retention. OpenSpout membaca dan menulis XLSX secara streaming agar penggunaan memori tetap terkendali. Modul lain cukup mendaftarkan implementasi `DataTransferHandler` yang menentukan kolom serta logika per baris.
+
+Handler referensi `identity.users` mendukung:
+
+- Export user ke CSV atau XLSX dengan kolom `name`, `email`, `status`, `locale`, `email_verified_at`, dan `created_at`.
+- Import/update idempotent user dari kolom `name`, `email`, `status`, dan `locale`.
+- Proteksi agar super administrator tidak dapat diubah melalui import.
+- Password acak untuk user baru; user menjalankan alur reset password sebelum login.
+
+Alur export:
+
+1. Panggil `POST /api/data-transfers/exports` dengan `type: identity.users`, pilihan `format: csv|xlsx`, dan `Idempotency-Key` unik. Format default adalah CSV.
+2. Worker queue `low` menghasilkan spreadsheet melalui cursor database.
+3. Pantau `GET /api/data-transfers/{id}` atau event `data_transfer.updated`.
+4. Setelah `completed`, unduh `output_file_id` melalui `GET /api/files/{file}/download`.
+
+Alur import:
+
+1. Upload CSV atau XLSX private melalui `POST /api/files`. Format dikenali otomatis dari MIME dan ekstensi file.
+2. Panggil `POST /api/data-transfers/imports` memakai `file_id`, `type`, dan `Idempotency-Key` unik.
+3. Worker memproses setiap baris dan menyimpan maksimal 100 detail error; `failed_rows` tetap menghitung seluruh kegagalan.
+4. Status batch dapat `completed` walaupun beberapa baris invalid. Gunakan `successful_rows`, `failed_rows`, dan `errors` untuk hasil akhirnya.
+
+Contoh body export:
+
+```json
+{"type": "identity.users", "format": "xlsx", "options": {}}
+```
+
+Contoh body import:
+
+```json
+{"type": "identity.users", "file_id": "uuid-file-csv-atau-xlsx", "options": {}}
+```
+
+CSV dan XLSX export melindungi cell yang dapat ditafsirkan sebagai formula spreadsheet. Import XLSX membaca worksheet pertama. File output tetap private dan mengikuti policy File Management. Transfer terminal serta file export yang dihasilkan dibersihkan setelah `data_transfers.retention_days`, default 30 hari. File input milik user tidak ikut dihapus oleh cleanup transfer.
 
 ## Payment foundation
 
