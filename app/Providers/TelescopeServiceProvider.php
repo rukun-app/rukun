@@ -37,14 +37,14 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
     protected function hideSensitiveRequestDetails(): void
     {
         Telescope::hideRequestParameters([
-            '_token',
+            '_token', 'nik', 'kk_number',
             'current_password',
             'password',
             'password_confirmation',
             'token',
         ]);
 
-        Telescope::hideResponseParameters(['data.token', 'data.initial_password', 'initial_password']);
+        Telescope::hideResponseParameters(['data.nik', 'data.kk_number', 'data.token', 'data.initial_password', 'initial_password']);
 
         Telescope::hideRequestHeaders([
             'cookie',

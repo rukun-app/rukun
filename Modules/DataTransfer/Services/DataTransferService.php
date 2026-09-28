@@ -6,6 +6,7 @@ use App\Models\User;
 use Core\Audit\Audit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\DataTransfer\Contracts\AuthorizesDataTransfer;
 use Modules\DataTransfer\DataTransferRegistry;
 use Modules\DataTransfer\Enums\TransferStatus;
 use Modules\DataTransfer\Jobs\ProcessDataTransfer;
@@ -35,6 +36,11 @@ class DataTransferService
 
     private function create(User $user, string $type, string $direction, ?StoredFile $input, array $options): DataTransfer
     {
+        $handler = $this->registry->get($type);
+        if ($handler instanceof AuthorizesDataTransfer) {
+            $handler->authorize($user, $direction, $options);
+        }
+
         return DB::transaction(function () use ($user, $type, $direction, $input, $options): DataTransfer {
             $transfer = DataTransfer::query()->create([
                 'public_id' => (string) Str::uuid(),

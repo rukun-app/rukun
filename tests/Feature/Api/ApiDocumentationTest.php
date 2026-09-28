@@ -119,3 +119,18 @@ it('documents idempotency and named rate limit contracts', function () {
             ->and($response['content']['application/json']['schema']['$ref'])->toBe('#/components/schemas/ErrorResponse');
     }
 });
+
+it('documents population scope, sensitive fields and transfer contracts', function () {
+    $document = $this->getJson('/docs/api/openapi.json')->assertOk()->json();
+    foreach (['households', 'residents'] as $resource) {
+        expect($document['paths']['/api/community/'.$resource])->toHaveKeys(['get', 'post']);
+        expect($document['paths']['/api/community/'.$resource.'/{'.rtrim($resource, 's').'}/sensitive'])->toHaveKeys(['get', 'put']);
+    }
+    expect($document['components']['schemas']['ResidentData']['properties'])->not->toHaveKey('nik');
+    expect($document['components']['schemas']['HouseholdData']['properties'])->not->toHaveKey('kk_number');
+    expect($document['components']['schemas']['CreateRoleAssignment']['properties']['scope_type']['enum'])->toContain('household', 'vendor');
+    foreach (['imports', 'exports'] as $direction) {
+        $operation = $document['paths']['/api/community/population/'.$direction]['post'];
+        expect(collect($operation['parameters'])->firstWhere('name', 'Idempotency-Key')['required'])->toBeTrue()->and($operation['responses'])->toHaveKey('202');
+    }
+});

@@ -11,13 +11,13 @@
 
 ## Status Implementasi
 
-> **Status per 28 September 2026:** F0 lokal dan F1 selesai (dependency Household/import dijadwalkan di F2); F2–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
+> **Status per 29 September 2026:** F0–F2 selesai untuk development lokal; rekonsiliasi dataset pilot nyata F2 belum dilakukan; F3–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
 
 | Fase | Nama | Status |
 |---|---|---|
 | F0 | Bootstrap & Core R Isolation | Selesai untuk development lokal |
-| F1 | Identity, Account Provisioning & Area | Selesai; integrasi Household/import di F2 |
-| F2 | Household, Resident & Scoped Authorization | Belum dimulai |
+| F1 | Identity, Account Provisioning & Area | Selesai termasuk dependency F2 |
+| F2 | Household, Resident & Scoped Authorization | Selesai lokal; dataset pilot nyata belum direkonsiliasi |
 | F3 | Billing, Manual Payments & Cashbook | Belum dimulai |
 | F4 | WiFi Collective & Gallon Benefit | Belum dimulai |
 | F5 | Payment Gateway / QRIS | Belum dimulai |
@@ -65,10 +65,30 @@
 - [x] Scoped role assignment GLOBAL/RW/RT dengan starts_at/ends_at, multi-role, revocation history, dan RW inheritance.
 - [x] Tabel bisnis tanpa prefix; audit dan mutasi provisioning memakai transaksi yang sama melalui koneksi `rukun` ke database yang sama.
 - [x] Final F1: 116 Pest test / 686 assertions, Pint, OpenAPI (56 paths / 70 operations), secret scan, dan diff check lulus.
-- [ ] **Dependency F2:** link Resident ↔ User dan import Household/Resident dengan `create_account`.
-- [ ] **Dependency F2:** household-assisted recovery dengan explicit capability, scope HOUSEHOLD/VENDOR, serta sinkronisasi scope akun saat mutasi membership.
+- [x] **Dependency F2:** link Resident ↔ User dan import Household/Resident dengan `create_account`.
+- [x] **Dependency F2:** household-assisted recovery dengan explicit capability, scope HOUSEHOLD/VENDOR, serta sinkronisasi scope akun saat mutasi membership.
 
 Pembagian dependency: F1 membuat akun dengan `account_scopes` sebagai scope pengelolaan administratif di RT. Data ini bukan Household/Resident atau bukti hubungan keluarga. F2 membangun hubungan domain tersebut dan memastikan scope akun mengikuti mutasi yang sah. Penempatan household recovery/import di F2 menghindari pemakaian role keluarga sebagai shortcut authorization.
+
+### Checklist F2
+
+- [x] Household pada RT dengan alamat/blok/nomor, status hunian, status administratif, dan UUID/reference unik.
+- [x] Resident dengan demografi, phone normalisasi, status, serta User opsional; satu Household dapat memiliki banyak Resident/akun.
+- [x] Satu membership aktif per Resident dengan constraint PostgreSQL, relationship dan histori mutasi.
+- [x] API list/detail/create/update, membership/history, account provisioning/linking, serta sensitive read/write.
+- [x] NIK/KK optional encrypted; HMAC unique; tidak ada dalam list/audit payload; read sensitif permission-gated dan diaudit; redaksi Telescope/log.
+- [x] Scope GLOBAL/RW/RT/HOUSEHOLD/VENDOR, inheritance RW, temporal multi-role, dan vendor scope anchor (operasional WiFi tetap F4).
+- [x] Household-assisted recovery dengan capability eksplisit dan keanggotaan aktif actor/target; relationship tidak memberi privilege.
+- [x] Mutasi membership memperbarui account_scopes, mencabut token serta assignment Household lama, dan menjaga role jabatan independen.
+- [x] Core DataTransfer `community.population`: CSV/XLSX, row validation, duplicate/replay detection, progress, audit, error CSV, dan optional `create_account` melalui service F1.
+- [x] Import satu transaksi per baris; kegagalan provisioning me-rollback Household/Resident/membership pada baris tersebut.
+- [x] Scope diperiksa saat submit, proses queue, dan download export; role scoped tidak memperoleh global DataTransfer privilege.
+- [x] Rehearsal sintetis: CSV 2 baris valid/1 gagal menghasilkan 1 Household import, 2 Resident/membership, 1 User; replay tidak menggandakan data. XLSX 3 baris menghasilkan 2 Household import/3 Resident/membership, export kembali 3 baris.
+- [x] OpenAPI, README, dan kontrak import/retensi credential diperbarui.
+- [x] Verifikasi akhir: 130 Pest test / 846 assertions, Pint, OpenAPI 71 paths / 92 operations, secret scan tracked/untracked, dan diff check lulus. Migration/seeder development diterapkan, sinyal restart worker dikirim, serta HTTPS health database/Redis/storage sehat.
+- [ ] **Sebelum production pilot:** import dan rekonsiliasi dataset warga nyata bersama pengurus; dataset belum diberikan. Rehearsal sintetis bukan sign-off data operasional.
+
+Keputusan F2: import/export umum tidak memuat NIK/KK; identifier sensitif dikelola melalui endpoint khusus. Export memuat snapshot Resident aktif dan membership saat ini, bukan backup histori. Error download memuat maksimal 100 baris gagal pertama. Credential import tetap 15 menit dari waktu pembuatan. Detail endpoint, kolom CSV/XLSX, serta konsekuensi rotasi APP_KEY ada di README. F3 dapat dilanjutkan setelah gate lokal F2 lulus; CI remote, staging, dan sign-off data operasional tetap gate sebelum production pilot.
 
 ### Log Implementasi
 
@@ -79,6 +99,7 @@ Pembagian dependency: F1 membuat akun dengan `account_scopes` sebagai scope peng
 | 2026-09-28 | F0 | Isolasi database mengikuti konfigurasi terbaru `rukun` / `rukun_test`; migration, RBAC seeder, bucket, HTTPS health, worker/scheduler, SMTP connection, local DB restore, 96 test / 549 assertions, Pint, OpenAPI 49 paths / 59 operations lulus. | Admin development, email end-to-end, CI remote dan staging belum terverifikasi; F1 belum dimulai. |
 | 2026-09-28 | F0 | Admin development login dan `/api/auth/me` lulus melalui HTTPS; email probe diterima MailDev lokal; seluruh gate lokal selesai. | Sesuai arahan pengguna, CI remote dan staging menjadi gate sebelum production pilot. |
 | 2026-09-28 | F1 | Identity email/HP, UUID user, first-login password change, provisioning/recovery scoped dan idempotent, output sementara terenkripsi, area CRUD, temporal scope GLOBAL/RW/RT, audit satu transaksi, constraint DB, en/id, dan OpenAPI selesai. Migration dan seeder diterapkan di development. | 116 test / 686 assertions, Pint, OpenAPI 56 paths / 70 operations, secret scan, serta diff check lulus. Integrasi Resident/Household, import create_account, scope HOUSEHOLD/VENDOR, dan household-assisted recovery dilanjutkan di F2. |
+| 2026-09-29 | F2 | Household/Resident, histori satu membership aktif, encrypted NIK/KK dan audit akses, scope HOUSEHOLD/VENDOR, account linking/provisioning, household recovery, sinkronisasi scope/token saat mutasi, serta Core DataTransfer CSV/XLSX dengan validasi/replay/hasil error selesai. README dan OpenAPI diperbarui. Migration/seeder development diterapkan; worker diberi sinyal restart dan health HTTPS sehat. | 130 test / 846 assertions, Pint, OpenAPI 71 paths / 92 operations, secret scan dan diff check lulus. Rehearsal sintetis terrekonsiliasi; dataset pilot nyata, CI remote, dan staging tetap belum diverifikasi sebelum production pilot. F3 belum dimulai. |
 
 Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate development fase aktif selesai. CI remote dan staging tetap wajib sebelum production pilot, tetapi tidak menghalangi F1 dan fase development berikutnya.
 

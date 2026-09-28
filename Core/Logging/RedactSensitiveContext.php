@@ -7,7 +7,7 @@ use Monolog\Processor\ProcessorInterface;
 
 class RedactSensitiveContext implements ProcessorInterface
 {
-    private const SENSITIVE_FRAGMENTS = ['authorization', 'cookie', 'password', 'token', 'secret', 'credential', 'access_key'];
+    private const SENSITIVE_FRAGMENTS = ['authorization', 'cookie', 'password', 'token', 'secret', 'credential', 'access_key', 'nik', 'kk_number'];
 
     public function __invoke(LogRecord $record): LogRecord
     {

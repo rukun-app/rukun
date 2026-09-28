@@ -6,7 +6,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 
 ## Implementasi Rukun
 
-Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0 lokal dan F1 selesai; F2–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
+Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F2 selesai untuk development lokal; F3–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
 
 Template `.env.example` menggunakan database `rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Database development/testing dan bucket sudah diprovisikan; health HTTPS serta uji tulis/baca object storage lulus.
 
@@ -68,8 +68,9 @@ Verifikasi baseline F0 lokal 28 September 2026: **96 test / 549 assertions**, Pi
 | V2.9: Runtime Settings Governance | Selesai | Database override, fallback environment, default kode, metadata group/type/source, dan reset override |
 | Roadmap V2 lanjutan | Direncanakan | Webhook keluar generik; lihat [`plan-v2.md`](plan-v2.md) |
 | Rukun F1 | Selesai | Identity email/HP, provisioning/recovery scoped, RW/RT, dan temporal role assignment; lihat `plan-be.md` |
+| Rukun F2 | Selesai lokal | Household, Resident, membership, scope HOUSEHOLD/VENDOR, sensitive identifiers, dan import/export CSV/XLSX |
 
-Verifikasi terakhir setelah F1: **116 test lulus dengan 686 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**56 paths / 70 operations**), dan secret scan lulus pada PHP 8.5.
+Verifikasi terakhir setelah F2 (29 September 2026): **130 test lulus dengan 846 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**71 paths / 92 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder F2 telah diterapkan di development; sinyal restart worker dikirim dan HTTPS health database/Redis/storage sehat.
 
 ## Memulai proyek baru
 
@@ -230,7 +231,7 @@ User dapat melihat token atau perangkat melalui `GET /api/auth/tokens` dan menca
 
 ## Community: area dan pengelolaan akun (F1)
 
-Modul `Modules/Community` menyediakan RW/RT, assignment pengurus, dan provisioning/recovery akun. Semua ID resource pada endpoint baru berupa UUID publik. `User`, `Resident`, dan `Household` tetap berbeda: Resident/Household serta importer warga dibuat di F2.
+Modul `Modules/Community` menyediakan RW/RT, assignment pengurus, dan provisioning/recovery akun. Semua ID resource pada endpoint baru berupa UUID publik. `User`, `Resident`, dan `Household` tetap berbeda: Resident/Household dan importer warga tersedia pada F2 di bawah.
 
 | Method | Endpoint | Akses / perilaku |
 |---|---|---|
@@ -244,17 +245,65 @@ Modul `Modules/Community` menyediakan RW/RT, assignment pengurus, dan provisioni
 
 RW dibuat dengan `kind=rw`, `code`, dan `name`; RT menggunakan `kind=rt` serta `parent_id` UUID RW. PATCH hanya menerima `code`/`name`. Hierarki tidak dipindahkan melalui CRUD generik; delete ditolak jika area masih direferensikan. List memakai `per_page` 1–100 dan `cursor`. Create area/assignment mendukung header idempotency opsional.
 
-Assignment menerima `user_id` UUID, `role` nama role, `scope_type=global|rw|rt`, `area_id` sesuai scope (kosong untuk global), `starts_at`, dan `ends_at` opsional. Scope RW mencakup child RT; scope RT tidak mencakup RT lain. Assignment masa depan, kedaluwarsa, dan revoked tidak memberi akses. Role scoped tidak ditempelkan ke relasi role global Core. Permission Core pada akun tetap bersifat global; jangan memberi role pengurus melalui endpoint role global jika akses yang dimaksud hanya RT/RW. Seeder `DatabaseSeeder` memanggil RBAC Core lalu `CommunitySeeder`; jalankan keduanya melalui `php artisan db:seed` agar permission Community tidak hilang saat sinkronisasi role Core.
+Assignment menerima `user_id` UUID, `role` nama role, `scope_type=global|rw|rt|household|vendor`, tepat satu ID resource sesuai scope (`area_id`, `household_id`, atau `vendor_id`; semua kosong untuk global), `starts_at`, dan `ends_at` opsional. Scope RW mencakup child RT; scope RT tidak mencakup RT lain. Assignment masa depan, kedaluwarsa, dan revoked tidak memberi akses. Role scoped tidak ditempelkan ke relasi role global Core. Permission Core pada akun tetap bersifat global; jangan memberi role pengurus melalui endpoint role global jika akses yang dimaksud hanya RT/RW. Seeder `DatabaseSeeder` memanggil RBAC Core lalu `CommunitySeeder`; jalankan keduanya melalui `php artisan db:seed` agar permission Community tidak hilang saat sinkronisasi role Core.
 
 Provisioning menerima `name`, `area_id` UUID RT, minimal `email` atau `phone`, serta `locale=id|en` opsional. Email dinormalisasi lowercase; nomor HP `08…`, `628…`, dan `+628…` menjadi `+628…`. F1 mendukung nomor HP Indonesia; OTP belum digunakan. Akun yang memiliki email tetap mengikuti aturan verifikasi email Core dan dapat meminta link melalui `/api/auth/email/resend` sebelum login pertama.
 
-Server membuat password awal acak 24 karakter dan `must_change_password=true`. Response provisioning/recovery berisi UUID operasi/akun, `credential_url`, dan expiry; tidak berisi password. Download menghasilkan JSON `{user_id, initial_password}` dengan `Cache-Control: private, no-store`. Output terenkripsi di Redis, berlaku 15 menit, hanya dapat diambil sekali, dan ditolak jika ada recovery lebih baru. Response yang sudah diunduh tidak dapat diulang; gunakan recovery baru jika distribusi gagal. Password plaintext tidak disimpan pada tabel, audit, atau response cache idempotency. Recovery selalu mencabut token dan reset link lama. Pada F1, akun dengan permission global atau assignment berstatus aktif dilindungi dari recovery administratif; self-recovery juga ditolak. Kebijakan untuk anggota household dengan capability khusus diperluas di F2.
+Server membuat password awal acak 24 karakter dan `must_change_password=true`. Response provisioning/recovery berisi UUID operasi/akun, `credential_url`, dan expiry; tidak berisi password. Download menghasilkan JSON `{user_id, initial_password}` dengan `Cache-Control: private, no-store`. Output terenkripsi di Redis, berlaku 15 menit, hanya dapat diambil sekali, dan ditolak jika ada recovery lebih baru. Response yang sudah diunduh tidak dapat diulang; gunakan recovery baru jika distribusi gagal. Password plaintext tidak disimpan pada tabel, audit, atau response cache idempotency. Recovery selalu mencabut token dan reset link lama. Akun dengan permission global atau assignment berstatus aktif yang berisi permission selain `households.view`/`residents.view` dilindungi dari recovery; self-recovery ditolak.
 
-Saat `must_change_password=true`, akses authenticated hanya tersedia untuk `/api/auth/me`, `/api/auth/password`, `/api/auth/logout`, dan `/api/auth/logout-all`; endpoint lain mengembalikan `auth.password_change_required`. Password baru harus berbeda. Reset email yang sah menghapus flag tersebut dan mencabut seluruh token. Pemilihan role keluarga tidak memberikan hak recovery; household-assisted recovery baru ditambahkan bersama Household/Membership di F2.
+Saat `must_change_password=true`, akses authenticated hanya tersedia untuk `/api/auth/me`, `/api/auth/password`, `/api/auth/logout`, dan `/api/auth/logout-all`; endpoint lain mengembalikan `auth.password_change_required`. Password baru harus berbeda. Reset email yang sah menghapus flag tersebut dan mencabut seluruh token. Pemilihan role keluarga tidak memberikan hak recovery; household-assisted recovery membutuhkan capability eksplisit sebagaimana dijelaskan di F2.
 
 Tabel `areas`, `role_assignments`, `account_scopes`, dan `account_operations` memakai koneksi PostgreSQL `rukun` tanpa prefix, menuju database fisik yang sama dengan koneksi `core`. Tabel foundation tetap `rcore_*`. Service provisioning dan adapter audit Community memakai **satu transaksi pada koneksi `rukun`**, termasuk akses eksplisit tabel Identity Core, agar user, scope, pencabutan token, dan audit commit/rollback bersama. Jangan membungkus service ini dalam transaksi koneksi `core` yang berbeda. Feature test Community memakai `DatabaseMigrations` agar tidak menyembunyikan visibilitas antar-koneksi di dalam transaksi test Core.
 
-`account_scopes` adalah scope administratif akun, bukan relasi warga atau keluarga. F2 harus mengintegrasikan scope ini dengan Resident/Household, import `create_account`, dan histori mutasi. Scope HOUSEHOLD/VENDOR serta capability household recovery tetap pekerjaan F2.
+`account_scopes` adalah scope administratif akun. Pada F2, akun yang ditautkan ke Resident mengikuti RT membership aktif; mutasi memperbarui scope, sedangkan berakhirnya membership menghapus scope administratif tersebut.
+
+## Community: Household, Resident, dan import (F2)
+
+Household menyimpan unit administrasi RT, alamat, blok/nomor, status hunian, dan status `active|moved|inactive`. Resident menyimpan nama, tanggal lahir/HP opsional, status `active|moved|deceased|inactive`, serta User opsional. Satu Household dapat memiliki banyak Resident dan beberapa akun berbeda; setiap User hanya ditautkan ke satu Resident. `reference` eksternal unik dapat diberikan saat create; jika kosong server membuat UUID referensi.
+
+| Method | Endpoint | Perilaku |
+|---|---|---|
+| GET / POST | `/api/community/households` | List scoped / buat Household pada RT |
+| GET / PATCH | `/api/community/households/{household}` | Detail / ubah alamat, hunian, atau status |
+| GET / POST | `/api/community/residents` | List scoped / buat Resident dan membership awal |
+| GET / PATCH | `/api/community/residents/{resident}` | Detail / ubah demografi atau status |
+| PUT | `/api/community/residents/{resident}/membership` | `{household_id: UUID|null, relationship}`; tutup membership lama |
+| GET | `/api/community/residents/{resident}/memberships` | Histori pada Household yang masih boleh diakses |
+| POST | `/api/community/residents/{resident}/account` | Provision akun atau link `user_id` existing; `Idempotency-Key` wajib |
+| GET / PUT | `/api/community/residents/{resident}/sensitive` | Baca / simpan atau hapus `nik` |
+| GET / PUT | `/api/community/households/{household}/sensitive` | Baca / simpan atau hapus `kk_number` |
+| GET / POST | `/api/community/vendors` | List scoped / buat anchor scope vendor |
+| PATCH | `/api/community/vendors/{vendor}` | Ubah nama/status vendor dalam scope |
+| POST | `/api/community/population/imports` | `{area_id, file_id}`; antre import CSV/XLSX |
+| POST | `/api/community/population/exports` | `{area_id, format: csv|xlsx}`; antre export |
+| GET | `/api/community/population/transfers/{transfer}/results` | Resident hasil import dan URL credential sementara |
+| GET | `/api/community/population/transfers/{transfer}/errors` | Download CSV ringkasan 100 baris error pertama |
+
+List menggunakan `per_page` 1–100 dan `cursor`; Household/Resident dapat difilter `area_id`, Resident juga `household_id`. Permission `households.view/manage` dan `residents.view/manage` diperiksa bersama scope. Anggota aktif dengan User tertaut memiliki akses baca Household sendiri dan anggotanya. Hak jabatan RW/RT independen dari tempat tinggal. Scope vendor hanya mengakses vendor terkait; fitur operasional WiFi tetap F4.
+
+Satu Resident hanya memiliki **satu membership aktif**, dijamin unique index PostgreSQL. Relationship `head|spouse|child|parent|other` tidak memberikan privilege. Mutasi memerlukan izin pada sumber dan tujuan, menutup histori lama, memperbarui RT/`account_scopes`, mencabut token lama dan assignment Household lama. Penggantian relationship pada Household yang sama mempertahankan scope. RT Household tidak dapat diubah lewat PATCH; pindahkan Resident ke Household tujuan. Household dengan anggota aktif tidak dapat dinonaktifkan. Status Resident nonaktif menutup membership; pengaktifan kembali memerlukan PUT membership untuk bergabung lagi. Role jabatan independen tidak dicabut otomatis.
+
+Provisioning Resident menggunakan service F1; response berisi Resident, `operation_id`, dan `credential_url`. Menautkan User existing membutuhkan **permission global `users.assign-roles`** selain izin pengelolaan Resident. Nomor HP Resident dan identifier login adalah data terpisah; edit demografi tidak mengganti identifier login.
+
+Role `household-account-manager` harus diberikan lewat scoped assignment `household` kepada anggota aktif. Recovery memakai endpoint akun F1 dan memerlukan actor serta target masih berada dalam Household yang sama. Akun target berprivilege tetap dilindungi. Assignment dicabut ketika membership berakhir; memilih relationship kepala keluarga saja tidak memberikan hak recovery. Jangan menempelkan role `warga` atau role pengurus ke relasi role global Core untuk akses yang seharusnya scoped.
+
+NIK/KK menerima string 16 digit atau `null`. Penyimpanan memakai encrypted cast dan HMAC untuk deteksi duplikat; list/detail umum menyembunyikan nilai serta hash. GET sensitif memerlukan `residents.view-sensitive`; PUT juga memerlukan permission manage. Keduanya diaudit tanpa nilai identitas, response `no-store`, dan parameter disamarkan pada Telescope/log context. **Rotasi APP_KEY memerlukan migrasi re-encryption dan perhitungan ulang HMAC** untuk NIK/KK serta fingerprint import; jangan mengganti key begitu saja setelah data dimasukkan.
+
+Import menggunakan handler Core `community.population`, queue `low`, dengan otorisasi `population.transfer`, `households.manage`, dan `residents.manage` pada RT yang dipilih. `create_account=1` juga memerlukan `accounts.provision`. Upload file dahulu melalui `/api/files`; kemudian kirim UUID file milik sendiri ke endpoint import. Import/export mewajibkan `Idempotency-Key`. Status, progress, output file, dan pembatalan memakai endpoint Core `/api/data-transfers/{id}`. Operator scoped tidak diberi permission global `data-transfers.create` sehingga tidak memperoleh akses export Identity Core.
+
+Kolom wajib dan contoh CSV:
+
+```csv
+household_reference,resident_reference,household_address,resident_name,relationship,create_account,phone
+H-001,R-001,Jalan Melati 1,Warga Satu,head,1,081234567890
+H-001,R-002,Jalan Melati 1,Warga Dua,child,0,
+```
+
+Kolom opsional: `block`, `house_number`, `occupancy_status` (default `occupied`), `birth_date` (`YYYY-MM-DD`), `phone`, dan `email`. Simpan referensi dan HP sebagai teks pada XLSX; data dibaca dari worksheet pertama. NIK/KK dan kolom lain ditolak pada import umum. Satu baris membentuk Household (jika baru), Resident, membership, dan akun opsional secara atomik. Minimal email/HP diperlukan ketika membuat akun. Data alamat untuk Household reference yang sama harus konsisten. Baris identik dapat diulang tanpa duplikasi; referensi yang berubah datanya atau berasal dari RT lain ditolak. Koreksi data yang sudah masuk melalui API CRUD, kemudian gunakan referensi baru hanya untuk warga baru.
+
+`results` menyediakan URL credential yang tetap berlaku **15 menit sejak akun dibuat**, sekali download dan hanya oleh pembuat yang masih berwenang. Import besar dapat melewati masa berlaku; gunakan recovery scoped untuk credential yang kedaluwarsa. Password tidak pernah dimasukkan ke CSV, XLSX, error result, atau audit. Error result menyimpan maksimal 100 baris pertama; counter gagal tetap menghitung semua baris. Export adalah snapshot Resident aktif beserta membership saat ini pada RT terpilih, tanpa NIK/KK; bukan backup histori atau mekanisme restore. File export mengikuti policy owner Core ditambah pemeriksaan scope saat download, termasuk setelah assignment dicabut atau riwayat transfer dihapus.
+
+Rehearsal sintetis CSV/XLSX dan rekonsiliasi jumlah Household, Resident, membership aktif, akun, serta baris gagal dijalankan dalam Pest pada `rukun_test`. Rekonsiliasi dataset pilot nyata masih menunggu data operasional dan dicatat terpisah di `plan-be.md` sebelum production pilot.
 
 ## Multilingual API
 

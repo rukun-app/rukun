@@ -9,9 +9,11 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Modules\DataTransfer\Contracts\AuthorizesDataTransfer;
 use Modules\DataTransfer\DataTransferRegistry;
 use Modules\DataTransfer\Enums\TransferStatus;
 use Modules\DataTransfer\Models\DataTransfer;
@@ -44,6 +46,9 @@ class ProcessDataTransfer implements ShouldQueue
 
         try {
             $handler = $registry->get($transfer->type);
+            if ($handler instanceof AuthorizesDataTransfer) {
+                $handler->authorize($transfer->user->fresh(), $transfer->direction, $transfer->options ?? []);
+            }
             if ($transfer->direction === 'export') {
                 $this->export($transfer, $handler, $files, $realtime);
             } else {
@@ -107,17 +112,25 @@ class ProcessDataTransfer implements ShouldQueue
                 $stream = null;
             }
 
+            if ($handler instanceof AuthorizesDataTransfer) {
+                $handler->authorize($transfer->user->fresh(), 'export', $transfer->options ?? []);
+            }
             $mimeType = $format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv';
             $upload = new UploadedFile($path, $transfer->type.'-'.now()->format('Ymd-His').'.'.$format, $mimeType, null, true);
-            $output = $files->store($upload, $transfer->user, $upload->getClientOriginalName(), ['data_transfer_id' => $transfer->public_id]);
-            $transfer->update([
-                'status' => TransferStatus::Completed,
-                'output_file_id' => $output->getKey(),
-                'total_rows' => $processed,
-                'processed_rows' => $processed,
-                'successful_rows' => $processed,
-                'finished_at' => now(),
-            ]);
+            DB::transaction(function () use ($files, $upload, $transfer, $handler, $processed): void {
+                $output = $files->store($upload, $transfer->user, $upload->getClientOriginalName(), ['data_transfer_id' => $transfer->public_id]);
+                if ($handler instanceof AuthorizesDataTransfer) {
+                    $handler->protectExport($output, $transfer->options ?? []);
+                }
+                $transfer->update([
+                    'status' => TransferStatus::Completed,
+                    'output_file_id' => $output->getKey(),
+                    'total_rows' => $processed,
+                    'processed_rows' => $processed,
+                    'successful_rows' => $processed,
+                    'finished_at' => now(),
+                ]);
+            });
             Audit::record('data_transfer.completed', $transfer, [
                 'direction' => $transfer->direction,
                 'type' => $transfer->type,
@@ -164,7 +177,7 @@ class ProcessDataTransfer implements ShouldQueue
             $values = array_pad($values, count($headers), null);
             $row = array_combine($headers, array_slice($values, 0, count($headers)));
             try {
-                $handler->importRow($transfer->user, $row, $transfer->options ?? []);
+                $handler->importRow($transfer->user, $row, [...($transfer->options ?? []), '_transfer_id' => $transfer->public_id]);
                 $success++;
             } catch (ValidationException $exception) {
                 $failed++;
@@ -236,7 +249,7 @@ class ProcessDataTransfer implements ShouldQueue
                 $row = array_combine($headers, array_slice($values, 0, count($headers)));
                 $processed++;
                 try {
-                    $handler->importRow($transfer->user, $row, $transfer->options ?? []);
+                    $handler->importRow($transfer->user, $row, [...($transfer->options ?? []), '_transfer_id' => $transfer->public_id]);
                     $success++;
                 } catch (ValidationException $exception) {
                     $failed++;

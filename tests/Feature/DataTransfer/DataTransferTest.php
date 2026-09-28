@@ -149,11 +149,12 @@ it('lists handler metadata and protects transfer ownership and cancellation', fu
     $owner->givePermissionTo('data-transfers.create');
     Sanctum::actingAs($owner);
 
-    $this->getJson('/api/data-transfers/types')->assertOk()
-        ->assertJsonPath('data.types.0.key', 'identity.users')
-        ->assertJsonPath('data.types.0.import', true)
-        ->assertJsonPath('data.types.0.export', true);
-    $this->getJson('/api/data-transfers/types')->assertJsonPath('data.types.0.formats', ['csv', 'xlsx']);
+    $types = $this->getJson('/api/data-transfers/types')->assertOk()->json('data.types');
+    $identity = collect($types)->firstWhere('key', 'identity.users');
+    expect($identity)->not->toBeNull()
+        ->and($identity['import'])->toBeTrue()
+        ->and($identity['export'])->toBeTrue()
+        ->and($identity['formats'])->toBe(['csv', 'xlsx']);
     $response = $this->withHeader('Idempotency-Key', 'cancel-export-'.fake()->uuid())
         ->postJson('/api/data-transfers/exports', ['type' => 'identity.users'])->assertAccepted();
     $id = $response->json('data.id');

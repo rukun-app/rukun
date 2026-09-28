@@ -29,7 +29,7 @@ class AccountProvisioner
         $prefix = config('database.connections.core.prefix');
         try {
             return $db->transaction(function () use ($db, $prefix, $actor, $target, $key, $data, $kind, $area, $fingerprint): AccountOperation {
-                $db->table($prefix.'users')->where('id', $actor->id)->lockForUpdate()->firstOrFail();
+                $db->table($prefix.'users')->whereIn('id', array_filter([$actor->id, $target?->id]))->orderBy('id')->lockForUpdate()->get();
                 $actor->unsetRelation('roles')->unsetRelation('permissions');
                 abort_unless($target ? $this->scopes->recoverable($actor, $target) : $this->scopes->allows($actor, 'accounts.provision', $area), 403);
                 $existing = AccountOperation::query()->where('actor_id', $actor->id)->where('idempotency_key', $key)->first();
@@ -59,7 +59,7 @@ class AccountProvisioner
                 $operation = AccountOperation::query()->create(['actor_id' => $actor->id, 'user_id' => $id, 'kind' => $kind, 'idempotency_key' => $key, 'fingerprint' => $fingerprint, 'expires_at' => now()->addMinutes(15)]);
                 // Redis stores ciphertext only. Plaintext is streamed once, never persisted in the DB or audit.
                 Cache::store('redis')->put('community:credential:'.$operation->public_id, Crypt::encryptString(json_encode(['user_id' => $publicId, 'initial_password' => $password], JSON_THROW_ON_ERROR)), $operation->expires_at);
-                CommunityAudit::record('account.'.$kind, $operation, ['user_public_id' => $publicId, 'area_public_id' => $area->public_id]);
+                CommunityAudit::record('account.'.$kind, $operation, ['user_public_id' => $publicId, 'area_public_id' => $area?->public_id, 'recovery_method' => $target ? $this->scopes->recoveryMethod($actor, $target) : null], actorId: $actor->id);
 
                 return $operation;
             });
