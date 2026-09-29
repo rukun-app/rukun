@@ -11,14 +11,14 @@
 
 ## Status Implementasi
 
-> **Status per 29 September 2026:** F0–F2 selesai untuk development lokal; rekonsiliasi dataset pilot nyata F2 belum dilakukan; F3–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
+> **Status per 29 September 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
 
 | Fase | Nama | Status |
 |---|---|---|
 | F0 | Bootstrap & Core R Isolation | Selesai untuk development lokal |
 | F1 | Identity, Account Provisioning & Area | Selesai termasuk dependency F2 |
 | F2 | Household, Resident & Scoped Authorization | Selesai lokal; dataset pilot nyata belum direkonsiliasi |
-| F3 | Billing, Manual Payments & Cashbook | Belum dimulai |
+| F3 | Billing, Manual Payments & Cashbook | Selesai lokal; buku kas pilot nyata belum direkonsiliasi |
 | F4 | WiFi Collective & Gallon Benefit | Belum dimulai |
 | F5 | Payment Gateway / QRIS | Belum dimulai |
 | F6 | Announcements & Citizen Services | Belum dimulai |
@@ -34,7 +34,7 @@
 - [x] Compose worker/scheduler/Reverb memakai identitas Rukun dan jaringan existing `docker-network`.
 - [x] Prefix tabel foundation `rcore_` dipertahankan.
 - [x] AGENTS.md memakai `/var/www/p85/rukun`; `.env.testing`, PHPUnit, test infrastruktur, dan CI memakai `rukun_test`.
-- [x] `.env` dan `.env.testing` lokal dibuat dengan credential shared infrastructure dari `../core-r`, APP_KEY terpisah, credential Reverb baru, permission `0600`, dan Git ignore terverifikasi. Midtrans tetap nonaktif.
+- [x] `.env` dan `.env.testing` lokal dibuat dengan credential shared infrastructure dari `../core-r`, APP_KEY terpisah, credential Reverb baru, permission `0600`, dan Git ignore terverifikasi. Midtrans nonaktif pada F0; sandbox dikonfigurasi pada F3.
 - [x] Database `rukun` / `rukun_test` dan bucket `rukun` dibuat; migration, RBAC seeder, dan private storage write/read/delete lulus.
 - [x] Health HTTPS Rukun: database, Redis, dan storage `up`.
 - [x] Feature test bootstrap admin, login, dan `/api/auth/me` lulus pada database `rukun_test`.
@@ -90,6 +90,27 @@ Pembagian dependency: F1 membuat akun dengan `account_scopes` sebagai scope peng
 
 Keputusan F2: import/export umum tidak memuat NIK/KK; identifier sensitif dikelola melalui endpoint khusus. Export memuat snapshot Resident aktif dan membership saat ini, bukan backup histori. Error download memuat maksimal 100 baris gagal pertama. Credential import tetap 15 menit dari waktu pembuatan. Detail endpoint, kolom CSV/XLSX, serta konsekuensi rotasi APP_KEY ada di README. F3 dapat dilanjutkan setelah gate lokal F2 lulus; CI remote, staging, dan sign-off data operasional tetap gate sebelum production pilot.
 
+### Checklist F3
+
+- [x] Payment type scoped RT/RW, tariff dengan effective period eksklusif/non-overlap, dan snapshot invoice historis.
+- [x] Generate invoice idempotent/natural unique, draft/issue/cancel, partial/paid/overdue derived, collection policy dan fund classification.
+- [x] Cash receipt bernomor, explicit/default allocation, no-overpay, dan pemisahan dana operasional/titipan.
+- [x] Submission transfer manual dengan bukti privat, pending tanpa receipt, reviewer independen scoped, approve/reject/cancel, dan history review.
+- [x] Approval satu transaksi: validasi saldo ulang, receipt, allocation, ledger, audit, event, dan status submission; duplicate approval tidak menggandakan receipt.
+- [x] Bukti terpakai dilindungi dari update/delete; akses file oleh reviewer tetap scoped.
+- [x] Ledger append-only pada PostgreSQL; adjustment, transfer kas/bank dua sisi, receipt/journal reversal dengan audit trail.
+- [x] Expense draft → independent approval → posted, evidence opsional, tanpa edit histori.
+- [x] Accounting period close RT/RW, snapshot report, larangan backdate, dan pembayaran arrears periode lama melalui cash date periode berjalan.
+- [x] Event durable F3 dan scheduler invoice.due_soon dengan deduplikasi harian.
+- [x] Rehearsal satu bulan sintetis direkonsiliasi: penerimaan 100.000, pengeluaran 25.000, transfer kas/bank 30.000, adjustment dibalik → kas 45.000 + bank 30.000 = 75.000.
+- [x] Test dua proses receipt bersamaan: hanya satu transaksi dapat memakai outstanding yang tersisa; cross-RT isolation, partial payment, rejection, reversal dan closed period teruji.
+- [x] `.env` lokal Midtrans disalin dari `../core-r`: credential terisi tanpa dicetak/tracked, mode sandbox aktif, permission 0600; `.env.testing` tetap terpisah. Adapter invoice/gateway masih F5.
+- [x] OpenAPI Billing, README, dan kontrak financial operation diperbarui.
+- [x] Gate akhir: 145 Pest test / 997 assertions, Pint, OpenAPI 100 paths / 127 operations, secret scan tracked/untracked, dan diff check lulus. Migration/seeder development diterapkan, sinyal restart worker dikirim, serta health HTTPS database/Redis/storage sehat.
+- [ ] **Sebelum production pilot:** bandingkan minimal satu bulan data nyata dengan buku kas pengurus. Data operasional belum tersedia; rehearsal sintetis bukan sign-off keuangan nyata.
+
+Keputusan F3: rupiah integer, semua POST memakai Idempotency-Key persisten, partial allocation tidak menyisakan saldo tak teralokasi, reviewer berbeda dari pembuat, dan koreksi menggunakan reversal. Close membekukan bulan yang dipilih serta menolak transaksi mundur ke bulan sebelumnya. Lock mutasi memakai RW induk; ledger dan audit/events commit bersama. Cashbook mengizinkan saldo negatif untuk rekonsiliasi, bukan kontrol saldo rekening bank. F4 dimulai setelah gate lokal F3 selesai; remote CI, staging, dan rekonsiliasi data pilot nyata tetap gate sebelum production pilot.
+
 ### Log Implementasi
 
 | Tanggal | Fase | Perubahan / bukti | Tindak lanjut |
@@ -100,6 +121,7 @@ Keputusan F2: import/export umum tidak memuat NIK/KK; identifier sensitif dikelo
 | 2026-09-28 | F0 | Admin development login dan `/api/auth/me` lulus melalui HTTPS; email probe diterima MailDev lokal; seluruh gate lokal selesai. | Sesuai arahan pengguna, CI remote dan staging menjadi gate sebelum production pilot. |
 | 2026-09-28 | F1 | Identity email/HP, UUID user, first-login password change, provisioning/recovery scoped dan idempotent, output sementara terenkripsi, area CRUD, temporal scope GLOBAL/RW/RT, audit satu transaksi, constraint DB, en/id, dan OpenAPI selesai. Migration dan seeder diterapkan di development. | 116 test / 686 assertions, Pint, OpenAPI 56 paths / 70 operations, secret scan, serta diff check lulus. Integrasi Resident/Household, import create_account, scope HOUSEHOLD/VENDOR, dan household-assisted recovery dilanjutkan di F2. |
 | 2026-09-29 | F2 | Household/Resident, histori satu membership aktif, encrypted NIK/KK dan audit akses, scope HOUSEHOLD/VENDOR, account linking/provisioning, household recovery, sinkronisasi scope/token saat mutasi, serta Core DataTransfer CSV/XLSX dengan validasi/replay/hasil error selesai. README dan OpenAPI diperbarui. Migration/seeder development diterapkan; worker diberi sinyal restart dan health HTTPS sehat. | 130 test / 846 assertions, Pint, OpenAPI 71 paths / 92 operations, secret scan dan diff check lulus. Rehearsal sintetis terrekonsiliasi; dataset pilot nyata, CI remote, dan staging tetap belum diverifikasi sebelum production pilot. F3 belum dimulai. |
+| 2026-09-29 | F3 | Billing scoped, tariff snapshot, invoice draft/issue/cancel, partial cash receipt dan alokasi, transfer manual dengan independent review/evidence, ledger append-only, expense, reversal dua sisi, period close/report snapshot, serta durable notification/scheduler selesai. Konfigurasi Midtrans sandbox disalin ke .env ignored. Migration/seeder development dan health lulus. | 145 test / 997 assertions (termasuk dua proses receipt bersamaan), Pint, OpenAPI 100 paths / 127 operations, secret scan, dan diff check lulus. Rehearsal sintetis satu bulan cocok; pembukuan pilot nyata belum dibandingkan. F4 belum dimulai; adapter invoice/gateway tetap F5. |
 
 Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate development fase aktif selesai. CI remote dan staging tetap wajib sebelum production pilot, tetapi tidak menghalangi F1 dan fase development berikutnya.
 

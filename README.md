@@ -6,7 +6,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 
 ## Implementasi Rukun
 
-Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F2 selesai untuk development lokal; F3–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
+Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F3 selesai untuk development lokal; F4–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
 
 Template `.env.example` menggunakan database `rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Database development/testing dan bucket sudah diprovisikan; health HTTPS serta uji tulis/baca object storage lulus.
 
@@ -69,8 +69,9 @@ Verifikasi baseline F0 lokal 28 September 2026: **96 test / 549 assertions**, Pi
 | Roadmap V2 lanjutan | Direncanakan | Webhook keluar generik; lihat [`plan-v2.md`](plan-v2.md) |
 | Rukun F1 | Selesai | Identity email/HP, provisioning/recovery scoped, RW/RT, dan temporal role assignment; lihat `plan-be.md` |
 | Rukun F2 | Selesai lokal | Household, Resident, membership, scope HOUSEHOLD/VENDOR, sensitive identifiers, dan import/export CSV/XLSX |
+| Rukun F3 | Selesai lokal | Tariff snapshot, invoice, cash receipt, transfer manual, allocation, ledger, expense, reversal, dan tutup buku |
 
-Verifikasi terakhir setelah F2 (29 September 2026): **130 test lulus dengan 846 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**71 paths / 92 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder F2 telah diterapkan di development; sinyal restart worker dikirim dan HTTPS health database/Redis/storage sehat.
+Verifikasi terakhir setelah F3 (29 September 2026): **145 test lulus dengan 997 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**100 paths / 127 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder F3 telah diterapkan di development; sinyal restart worker dikirim dan HTTPS health database/Redis/storage sehat. Midtrans lokal sudah dikonfigurasi sandbox dari Core R; tidak ada transaksi gateway nyata dibuat.
 
 ## Memulai proyek baru
 
@@ -304,6 +305,61 @@ Kolom opsional: `block`, `house_number`, `occupancy_status` (default `occupied`)
 `results` menyediakan URL credential yang tetap berlaku **15 menit sejak akun dibuat**, sekali download dan hanya oleh pembuat yang masih berwenang. Import besar dapat melewati masa berlaku; gunakan recovery scoped untuk credential yang kedaluwarsa. Password tidak pernah dimasukkan ke CSV, XLSX, error result, atau audit. Error result menyimpan maksimal 100 baris pertama; counter gagal tetap menghitung semua baris. Export adalah snapshot Resident aktif beserta membership saat ini pada RT terpilih, tanpa NIK/KK; bukan backup histori atau mekanisme restore. File export mengikuti policy owner Core ditambah pemeriksaan scope saat download, termasuk setelah assignment dicabut atau riwayat transfer dihapus.
 
 Rehearsal sintetis CSV/XLSX dan rekonsiliasi jumlah Household, Resident, membership aktif, akun, serta baris gagal dijalankan dalam Pest pada `rukun_test`. Rekonsiliasi dataset pilot nyata masih menunggu data operasional dan dicatat terpisah di `plan-be.md` sebelum production pilot.
+
+## Billing, pembayaran manual, dan kas (F3)
+
+`Modules/Billing` menggunakan tabel domain tanpa prefix pada koneksi `rukun`. Nominal adalah **integer rupiah IDR**, maksimal Rp1.000.000.000.000 per transaksi. Semua POST Billing memerlukan `Idempotency-Key` 8–128 karakter. Server menyimpan fingerprint dan hasil operasi dalam transaksi yang sama; penggunaan ulang key dengan payload berbeda ditolak 409, dan replay tetap memeriksa permission/scope terbaru. Tidak ada password atau credential gateway di tabel billing.
+
+| Method | Endpoint `/api/billing` | Perilaku |
+|---|---|---|
+| GET / POST | `/payment-types` | Daftar jenis tagihan / buat pada RW atau RT |
+| GET / POST | `/payment-types/{type}/tariffs` | Daftar / tambah nominal dan masa berlaku |
+| POST | `/tariffs/{tariff}/end` | Pendekkan masa berlaku tarif sebelum memasukkan tarif pengganti |
+| GET / POST | `/bank-accounts` | Rekening tujuan transfer manual pada RW/RT |
+| POST | `/invoices/generate` | Generate maksimal 500 Household aktif dalam satu RT |
+| GET | `/invoices`, `/invoices/{id}` | Invoice dengan saldo dan status derived |
+| POST | `/invoices/{invoice}/issue`, `/invoices/{invoice}/cancel` | Terbitkan draft / batalkan invoice tanpa pembayaran aktif |
+| POST | `/receipts/cash` | Terima cash, alokasikan, dan catat ledger secara atomik |
+| GET | `/receipts`, `/receipts/{id}` | Nomor receipt, alokasi, dan ID reversal bila ada |
+| POST | `/receipts/{receipt}/reverse` | Balik receipt beserta seluruh posting ledger |
+| GET / POST | `/submissions` | Daftar / ajukan transfer manual dengan bukti |
+| GET | `/submissions/{id}` | Detail status dan review |
+| POST | `/submissions/{submission}/approve`, `/reject`, `/cancel` | Review atau pembatalan oleh pengaju |
+| GET / POST | `/expenses` | Daftar / buat expense draft |
+| GET | `/expenses/{id}` | Detail expense dan status reversal |
+| POST | `/expenses/{expense}/approve`, `/post` | Approval independen lalu posting pengeluaran |
+| GET / POST | `/ledger` | Daftar jurnal / tambah adjustment atau transfer kas–bank |
+| GET | `/ledger/{id}` | Detail jurnal termasuk referensi reversal |
+| POST | `/ledger/{entry}/reverse` | Balik expense/adjustment; transfer dibalik kedua sisinya |
+| GET | `/periods`, `/periods/{id}` | Snapshot periode yang sudah ditutup |
+| POST | `/periods/close` | Tutup periode RT/RW dan simpan rekonsiliasi |
+| GET | `/reports/monthly?area_id={uuid}&period=YYYY-MM` | Laporan saldo per fund dan channel, atau snapshot tertutup |
+
+Daftar memakai cursor dan `per_page` 1–100, dengan filter `area_id`. Invoice/receipt/submission mendukung `household_id`; invoice/receipt/ledger/period mendukung `period=YYYY-MM`. ID resource berupa UUID publik. Mutasi mengembalikan ID hasil; baca detail melalui GET untuk status terkini.
+
+`payment-types` menerima `area_id`, `code`, `name`, `collection_policy=must_settle_in_period|can_accumulate`, dan `fund_classification=operational|pass_through`. Tariff menerima `amount`, `starts_at`, dan `ends_at` opsional; end bersifat **eksklusif**, periode tidak boleh tumpang tindih. Invoice bulanan memilih tariff yang berlaku pada tanggal pertama billing period. Generate menerima `area_id` RT, `payment_type_id` milik RT atau RW induk, `period`, `due_date`, `settle_by` opsional (default due date), `subject` opsional, serta `household_ids` opsional. Tanpa daftar ID, generate memilih Household aktif RT tersebut, maksimal 500. `state=draft|issued` default issued.
+
+Unique key invoice adalah Household + payment type + period + subject. Generate ulang mengembalikan invoice yang sudah ada; tidak menimpa snapshot. Nominal, tariff, kebijakan penagihan, dan fund disimpan pada invoice; perubahan tariff tidak mengubah invoice terbit. Issue draft mengambil nominal tariff efektif saat penerbitan. Status response `draft|issued|partially_paid|paid|overdue|cancelled` dihitung dari state dan alokasi receipt yang belum dibalik; flag `overdue` tetap tersedia untuk partial payment lewat jatuh tempo.
+
+Cash receipt menerima `household_id`, `amount`, `paid_on`, dan `allocations` opsional berupa `[{invoice_id, amount}]`. Total explicit allocation harus sama dengan receipt, invoice harus milik Household tersebut, dan nominal tidak boleh melebihi outstanding. Tanpa pilihan eksplisit, alokasi memprioritaskan invoice `must_settle_in_period` pada bulan cash receipt, lalu tunggakan tertua sampai bulan tersebut. Tidak ada saldo sisa tak teralokasi pada F3; kelebihan bayar ditolak. Explicit allocation dapat memilih invoice terbit lain milik Household yang sama, termasuk tagihan mendatang.
+
+Upload bukti melalui File Management Core. Submission menerima `household_id`, `amount`, `transferred_at` (tanggal), `destination_account_id`, `proof_file_id` milik pengaju (PNG/JPEG/PDF), `note`, dan pilihan allocation. Submission pending **tidak membuat receipt dan tidak mengubah invoice**. Approval membutuhkan reviewer berbeda dari pengaju, scope RT/RW yang sesuai, dan saldo invoice yang masih cukup. Reviewer tidak dapat mengganti amount/allocation; reject membutuhkan `review_note`, lalu pengaju mengirim submission baru. Approval menerima `paid_on` opsional (default hari approval), tidak boleh sebelum tanggal transfer; outstanding/default allocation diperiksa ulang pada tanggal pembukuan tersebut. Approval berulang menghasilkan receipt yang sama. Pending hanya dapat dibatalkan oleh pengajunya yang masih berwenang.
+
+Bukti yang sudah digunakan tidak dapat diubah atau dihapus lewat Core Files. File tetap dapat dibaca pemilik dan reviewer dengan scope/permission sesuai; reviewer RT lain ditolak. Referensi bukti dan review ditahan untuk audit, termasuk submission rejected/cancelled.
+
+Role `bendahara-rt/rw` memiliki permission Billing melalui scoped assignment. `ketua-rt/rw` dapat membaca laporan/ledger/invoice/receipt, mereview transfer/expense, dan menutup periode. Anggota Household aktif memiliki akses baca invoice/receipt/submission Household sendiri dan dapat mengajukan transfer; membership tidak memberi izin menerima cash, approval, atau mengubah ledger. Expense dibuat sebagai draft, diapprove petugas lain dengan `expenses.approve`, lalu diposting dengan `expenses.post` dan tanggal pada periode terbuka. Draft tidak menyediakan edit nominal; bila keliru, buat draft pengganti dan jangan approve draft lama.
+
+Receipt, alokasi, reversal, ledger, dan snapshot tutup buku dilindungi trigger PostgreSQL **append-only**. Receipt dan ledger ditulis bersama audit/event dalam satu transaksi `rukun`; jangan membungkus service Billing dengan transaksi koneksi Core yang terpisah. Mutasi keuangan memakai lock RW induk yang sama sehingga approval, receipt, reversal, dan close tidak berlomba pada saldo yang sama. Test dua proses receipt bersamaan membuktikan hanya transaksi yang masih memiliki outstanding yang berhasil.
+
+`ledger` menerima `kind=adjustment|transfer`, nominal, `posted_on`, `fund_classification`, `channel=cash|bank`, dan `reason`. Adjustment boleh positif/negatif, tetapi tidak nol; transfer harus positif, memakai `destination_channel` yang berbeda, dan membuat dua posting berjumlah nol pada fund yang sama. Koreksi dilakukan melalui reversal dengan `posted_on` dan alasan, lalu transaksi pengganti. Receipt reversal memulihkan outstanding invoice; expense tetap menyimpan lifecycle historis `posted` dengan flag `reversed`. Ledger F3 mencatat saldo termasuk koreksi/opening balance; saldo negatif ditampilkan untuk rekonsiliasi, tidak diblokir otomatis. Dana `pass_through` terpisah dari operasional pada laporan; settlement vendor/benefit tetap F4.
+
+Tutup buku menerima `area_id` RT/RW dan `period=YYYY-MM` yang tidak melampaui bulan berjalan. Close menyimpan opening, inflow, outflow, closing untuk tiap fund/channel, serta invoice total/paid/outstanding per akhir bulan. Close menolak backdating pada bulan tertutup **dan bulan sebelumnya**, termasuk transaksi child RT setelah RW ditutup. Laporan periode tertutup selalu memakai snapshot. Pembayaran tunggakan setelah close dicatat di periode kas berjalan dan tetap dialokasikan ke invoice lama. Reversal setelah close memakai tanggal periode berjalan; histori dan snapshot bulan lama tidak diedit. Transfer kas–bank ikut inflow/outflow channel sehingga angka tersebut merupakan pergerakan kas bruto, bukan pendapatan bersih.
+
+Event durable tersedia melalui Core `/api/events`: `invoice.created`, `invoice.due_soon`, `payment_submission.created`, `payment_submission.approved`, `payment_submission.rejected`, dan `receipt.created`. Payload hanya memuat UUID resource; client mengambil detail dengan pemeriksaan scope terbaru. Scheduler menjalankan `billing:notify-due` pukul 07:00 timezone aplikasi untuk invoice belum lunas yang jatuh tempo dalam tiga hari, deduplicated per invoice/hari. Warga tanpa akun tetap valid namun tidak memiliki penerima notifikasi login.
+
+Rehearsal sintetis satu bulan diuji terhadap pembukuan manual yang diharapkan: receipt Rp100.000, expense Rp25.000, transfer Rp30.000 kas ke bank, dan adjustment yang dibalik menghasilkan kas Rp45.000 + bank Rp30.000 = Rp75.000. Test lain memisahkan fund titipan/operasional, memeriksa closed-period arrears, dan rollback approval saat saldo invoice sudah habis. Perbandingan dengan buku kas pilot nyata belum dilakukan karena data operasional belum tersedia.
+
+Konfigurasi Midtrans lokal disalin dari `../core-r/.env` atas arahan pengguna: server/client key dan merchant ID terisi, `MIDTRANS_ENABLED=true`, serta `MIDTRANS_PRODUCTION=false` (sandbox). `.env` tetap ignored dengan permission `0600`, dan `.env.testing` tidak memakai credential tersebut. Belum ada transaksi gateway nyata yang dibuat. Foundation Payments Core dapat memakai sandbox; **adapter invoice → checkout → verified receipt/webhook dijadwalkan pada F5**, tidak dianggap selesai oleh konfigurasi credential ini.
 
 ## Multilingual API
 

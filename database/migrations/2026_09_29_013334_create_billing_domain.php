@@ -26,7 +26,7 @@ return new class extends Migration
         DB::statement('CREATE INDEX allocations_invoice ON receipt_allocations(invoice_id)');
         DB::statement('CREATE INDEX ledger_scope_date ON ledger_entries(area_id,posted_on)');
         DB::statement('CREATE INDEX submissions_scope_status ON payment_submissions(area_id,status)');
-        DB::unprepared("CREATE FUNCTION billing_immutable_history() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RAISE EXCEPTION ''Billing history is append-only''; END;'");
+        DB::unprepared("CREATE OR REPLACE FUNCTION billing_immutable_history() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RAISE EXCEPTION ''Billing history is append-only''; END;'");
         foreach (['ledger_entries', 'receipts', 'receipt_allocations', 'receipt_reversals', 'accounting_periods'] as $table) {
             DB::statement("CREATE TRIGGER {$table}_immutable BEFORE UPDATE OR DELETE ON {$table} FOR EACH ROW EXECUTE FUNCTION billing_immutable_history()");
         }

@@ -90,7 +90,6 @@ class BillingService
             $this->open($area, $period);
             $type = PaymentType::query()->where('public_id', $data['payment_type_id'])->firstOrFail();
             abort_unless(in_array($type->area_id, [$area->id, $area->parent_id], true), 422);
-            $tariff = $this->effectiveTariff($type, $period);
             $query = Household::query()->where('area_id', $area->id)->where('status', 'active');
             if (isset($data['household_ids'])) {
                 $query->whereIn('public_id', $data['household_ids']);
@@ -105,6 +104,7 @@ class BillingService
                 $natural = ['household_id' => $household->id, 'payment_type_id' => $type->id, 'period' => $period, 'subject' => $data['subject'] ?? ''];
                 $invoice = Invoice::query()->where($natural)->first();
                 if (! $invoice) {
+                    $tariff = $this->effectiveTariff($type, $period);
                     $invoice = Invoice::query()->create([...$natural, 'area_id' => $area->id, 'tariff_id' => $tariff->id, 'amount' => $tariff->amount, 'collection_policy' => $type->collection_policy, 'fund_classification' => $type->fund_classification, 'due_date' => $data['due_date'], 'settle_by' => $data['settle_by'] ?? $data['due_date'], 'state' => $data['state'] ?? 'issued']);
                     CommunityAudit::record('invoice.created', $invoice, actorId: $actor->id);
                     if ($invoice->state === 'issued') {
@@ -411,25 +411,25 @@ class BillingService
     private function command(User $actor, Area $area, string $permission, string $operation, string $key, array $data, callable $callback, ?Household $household = null): array
     {
         try {
-            return DB::connection('rukun')->transaction(function () use ($actor,$area,$permission,$operation,$key,$data,$callback,$household): array {
+            return DB::connection('rukun')->transaction(function () use ($actor, $area, $permission, $operation, $key, $data, $callback, $household): array {
                 Area::query()->whereKey($area->parent_id ?? $area->id)->lockForUpdate()->firstOrFail();
-                DB::connection('rukun')->table(config('database.connections.core.prefix').'users')->where('id',$actor->id)->lockForUpdate()->firstOrFail();
+                DB::connection('rukun')->table(config('database.connections.core.prefix').'users')->where('id', $actor->id)->lockForUpdate()->firstOrFail();
                 $actor->refresh();
                 if ($household) {
-                    $this->scope->household($actor,$permission,$household->fresh());
+                    $this->scope->household($actor, $permission, $household->fresh());
                 } else {
-                    $this->scope->area($actor,$permission,$area);
+                    $this->scope->area($actor, $permission, $area);
                 }
-                $fingerprint = SensitiveIdentifier::fingerprint(json_encode($data,JSON_THROW_ON_ERROR));
+                $fingerprint = SensitiveIdentifier::fingerprint(json_encode($data, JSON_THROW_ON_ERROR));
                 $identity = ['actor_id' => $actor->id, 'operation' => $operation, 'request_key' => $key];
                 $previous = DB::connection('rukun')->table('billing_requests')->where($identity)->first();
                 if ($previous) {
-                    abort_unless(hash_equals($previous->fingerprint,$fingerprint),409,__('api.errors.idempotency_conflict'));
+                    abort_unless(hash_equals($previous->fingerprint, $fingerprint), 409, __('api.errors.idempotency_conflict'));
 
-                    return json_decode($previous->result,true,flags: JSON_THROW_ON_ERROR);
+                    return json_decode($previous->result, true, flags: JSON_THROW_ON_ERROR);
                 }
                 $result = $callback();
-                DB::connection('rukun')->table('billing_requests')->insert([...$identity, 'fingerprint' => $fingerprint, 'result' => json_encode($result,JSON_THROW_ON_ERROR)]);
+                DB::connection('rukun')->table('billing_requests')->insert([...$identity, 'fingerprint' => $fingerprint, 'result' => json_encode($result, JSON_THROW_ON_ERROR)]);
 
                 return $result;
             }, 3);
