@@ -27,8 +27,8 @@ class WifiService
         $area = Area::query()->findOrFail($type->area_id);
 
         return $this->command($actor, $area, 'package', $key, $data, function () use ($actor, $area, $type, $data): array {
-            abort_unless($type->collection_policy === 'must_settle_in_period' && $type->fund_classification === 'pass_through', 422, 'WiFi membutuhkan jenis pembayaran must_settle_in_period dan pass_through.');
-            abort_if(Invoice::query()->where('payment_type_id', $type->id)->exists(), 409, 'Gunakan jenis pembayaran khusus WiFi yang belum memiliki invoice.');
+            abort_unless($type->collection_policy === 'must_settle_in_period' && $type->fund_classification === 'pass_through', 422, __('wifi::messages.payment_type'));
+            abort_if(Invoice::query()->where('payment_type_id', $type->id)->exists(), 409, __('wifi::messages.unused_type'));
             $vendor = Vendor::query()->where('public_id', $data['vendor_id'])->where('status', 'active')->lockForUpdate()->firstOrFail();
             $package = WifiPackage::query()->create([...$data, 'area_id' => $area->id, 'vendor_id' => $vendor->id, 'payment_type_id' => $type->id]);
             CommunityAudit::record('wifi.package.created', $package, actorId: $actor->id);
@@ -50,7 +50,7 @@ class WifiService
             $vendor = Vendor::query()->whereKey($package->vendor_id)->lockForUpdate()->firstOrFail();
             abort_unless($vendor->status === 'active', 409);
             // One WiFi subscription per household in each billed month, including a package/vendor switch.
-            abort_if(WifiCustomer::query()->where('household_id', $household->id)->where(fn ($q) => $q->whereNull('ends_on')->orWhere('ends_on', '>', substr($data['starts_on'], 0, 7).'-01'))->exists(), 409, 'Periode langganan WiFi rumah tangga bertumpang tindih.');
+            abort_if(WifiCustomer::query()->where('household_id', $household->id)->where(fn ($q) => $q->whereNull('ends_on')->orWhere('ends_on', '>', substr($data['starts_on'], 0, 7).'-01'))->exists(), 409, __('wifi::messages.overlap'));
             $customer = WifiCustomer::query()->create(['household_id' => $household->id, 'area_id' => $area->id, 'vendor_id' => $package->vendor_id, 'package_id' => $package->id, 'starts_on' => $data['starts_on']]);
             CommunityAudit::record('wifi.customer.created', $customer, actorId: $actor->id);
 
@@ -64,13 +64,13 @@ class WifiService
 
         return $this->command($actor, $area, 'customer.end', $key, ['customer_id' => $customer->public_id, ...$data], function () use ($actor, $customer, $data): array {
             $customer->refresh();
-            abort_unless(substr($data['ends_on'], 8, 2) === '01' && $data['ends_on'] > $customer->starts_on->toDateString(), 422, 'Pengakhiran berlaku pada hari pertama bulan setelah aktivasi.');
+            abort_unless(substr($data['ends_on'], 8, 2) === '01' && $data['ends_on'] > $customer->starts_on->toDateString(), 422, __('wifi::messages.end_boundary'));
             if ($customer->ends_on) {
                 abort_unless($customer->ends_on->toDateString() === $data['ends_on'], 409);
 
                 return ['public_id' => $customer->public_id];
             }
-            abort_if(WifiBill::query()->where('customer_id', $customer->id)->where('period', '>=', $data['ends_on'])->exists(), 409, 'Pengakhiran tidak boleh mendahului periode yang sudah ditagihkan.');
+            abort_if(WifiBill::query()->where('customer_id', $customer->id)->where('period', '>=', $data['ends_on'])->exists(), 409, __('wifi::messages.end_billed'));
             $customer->update(['ends_on' => $data['ends_on']]);
             CommunityAudit::record('wifi.customer.ended', $customer, ['ends_on' => $data['ends_on']], $actor->id);
 
@@ -89,9 +89,9 @@ class WifiService
             if ($previous) {
                 return ['public_id' => $previous->public_id, 'invoice_id' => Invoice::query()->findOrFail($previous->invoice_id)->public_id];
             }
-            abort_unless($customer->starts_on->format('Y-m') <= $data['period'] && (! $customer->ends_on || $period < $customer->ends_on->toDateString()), 409, 'Langganan tidak aktif pada periode ini.');
+            abort_unless($customer->starts_on->format('Y-m') <= $data['period'] && (! $customer->ends_on || $period < $customer->ends_on->toDateString()), 409, __('wifi::messages.inactive_period'));
             $household = Household::query()->whereKey($customer->household_id)->lockForUpdate()->firstOrFail();
-            abort_unless($household->area_id === $area->id && $household->status === 'active', 409, 'Wilayah/status rumah tangga berubah; tutup dan daftarkan langganan yang sesuai.');
+            abort_unless($household->area_id === $area->id && $household->status === 'active', 409, __('wifi::messages.household_changed'));
             $package = WifiPackage::query()->findOrFail($customer->package_id);
             $vendor = Vendor::query()->whereKey($package->vendor_id)->lockForUpdate()->firstOrFail();
             abort_unless($vendor->status === 'active', 409);
@@ -130,7 +130,7 @@ class WifiService
                 return $result;
             }, 3);
         } catch (UniqueConstraintViolationException) {
-            throw ValidationException::withMessages(['resource' => 'Paket, pelanggan, atau tagihan sudah ada.']);
+            throw ValidationException::withMessages(['resource' => __('wifi::messages.duplicate')]);
         }
     }
 }

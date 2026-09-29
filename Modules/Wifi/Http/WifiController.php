@@ -35,7 +35,7 @@ class WifiController
 
     public function package(Request $request): JsonResponse
     {
-        $data = $request->validate(['vendor_id' => ['required', 'uuid'], 'payment_type_id' => ['required', 'uuid'], 'name' => ['required', 'string', 'max:100'], 'due_day' => ['required', 'integer', 'min:1', 'max:28'], 'settle_day' => ['required', 'integer', 'gte:due_day', 'max:28']]);
+        $data = $request->validate(['vendor_id' => ['required', 'uuid'], 'payment_type_id' => ['required', 'uuid'], 'name' => ['required', 'string', 'max:100'], 'due_day' => ['required', 'integer', 'min:1', 'max:28'], 'settle_day' => ['required', 'integer', 'gte:due_day', 'max:28'], 'allow_advance' => ['sometimes', 'boolean'], 'remit_day' => ['sometimes', 'integer', 'gte:settle_day', 'max:28'], 'gallon_quota' => ['sometimes', 'integer', 'min:1', 'max:1000'], 'claim_days' => ['sometimes', 'integer', 'min:1', 'max:365']]);
 
         return ApiResponse::success($this->wifi->package($request->user(), $this->key($request), $data), 201);
     }
@@ -61,7 +61,7 @@ class WifiController
         return ApiResponse::success($this->wifi->bill($request->user(), $this->key($request), $customer, $data), 201);
     }
 
-    private function visible(Request $request, string $collection): Builder
+    public function visible(Request $request, string $collection): Builder
     {
         $query = ($collection === 'packages' ? WifiPackage::class : WifiCustomer::class)::query();
         $actor = $request->user();

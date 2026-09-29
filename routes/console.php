@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use Modules\Wifi\Models\GallonBenefit;
+use Modules\Wifi\Services\GallonService;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -20,3 +22,13 @@ Schedule::command('core:prune-failed-jobs')->dailyAt('02:30')->withoutOverlappin
 Schedule::command('data-transfers:prune')->dailyAt('02:45')->withoutOverlapping();
 
 Schedule::command('billing:notify-due')->dailyAt('07:00')->withoutOverlapping();
+
+Artisan::command('wifi:expire-benefits', function (): void {
+    GallonBenefit::query()->where('status', 'active')->where('expires_on', '<', today())->chunkById(100, function ($benefits): void {
+        foreach ($benefits as $benefit) {
+            app(GallonService::class)->expire($benefit);
+        }
+    });
+    $this->info('Expired gallon benefits processed.');
+})->purpose('Expire unused gallon quota and unconfirmed deliveries');
+Schedule::command('wifi:expire-benefits')->dailyAt('00:10')->withoutOverlapping();

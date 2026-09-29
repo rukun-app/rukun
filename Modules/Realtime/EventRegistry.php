@@ -9,10 +9,14 @@ use Modules\Billing\Models\PaymentSubmission;
 use Modules\Billing\Models\Receipt;
 use Modules\DataTransfer\Models\DataTransfer;
 use Modules\Payments\Models\Payment;
+use Modules\Wifi\Models\GallonBenefit;
+use Modules\Wifi\Models\GallonClaim;
 
 class EventRegistry
 {
     public const TYPES = [
+        'wifi.benefit.updated' => ['schema_version' => 1],
+        'wifi.claim.updated' => ['schema_version' => 1],
         'invoice.created' => ['schema_version' => 1],
         'invoice.due_soon' => ['schema_version' => 1],
         'payment_submission.created' => ['schema_version' => 1],
@@ -26,6 +30,8 @@ class EventRegistry
     ];
 
     public const RESOURCES = [
+        GallonBenefit::class => 'gallon_benefit',
+        GallonClaim::class => 'gallon_claim',
         Invoice::class => 'invoice',
         PaymentSubmission::class => 'payment_submission',
         Receipt::class => 'receipt',

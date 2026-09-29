@@ -71,7 +71,7 @@ Verifikasi baseline F0 lokal 28 September 2026: **96 test / 549 assertions**, Pi
 | Rukun F2 | Selesai lokal | Household, Resident, membership, scope HOUSEHOLD/VENDOR, sensitive identifiers, dan import/export CSV/XLSX |
 | Rukun F3 | Selesai lokal | Tariff snapshot, invoice, cash receipt, transfer manual, allocation, ledger, expense, reversal, dan tutup buku |
 
-Verifikasi terakhir setelah F4 tahap 1 (29 September 2026): **154 test lulus dengan 1064 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**106 paths / 135 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder WiFi telah diterapkan di development; worker sudah restart dan HTTPS health database/Redis/storage sehat. Tunnel webhook-only aktif dan signature sandbox valid/invalid sudah diuji; tidak ada transaksi gateway nyata dibuat. Settlement, advance, dan galon F4 belum selesai.
+Verifikasi terakhir setelah F4 (30 September 2026): **166 test lulus dengan 1173 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**126 paths / 155 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder settlement dan galon diterapkan di development; worker restart, scheduler expiry terdaftar, dan HTTPS health database/Redis/storage sehat. Rekonsiliasi sintetis mencakup remittance/advance/recovery, reversal dan ledger galon, termasuk konkurensi invoice, setoran, serta reservasi kuota. Quick Tunnel diperbarui setelah endpoint lama tidak berlaku; signed sandbox webhook pada URL pengganti lulus, tanpa membuat transaksi gateway nyata. Sign-off kebijakan dan data pilot nyata masih pending; F5 belum dimulai.
 
 ## Memulai proyek baru
 
@@ -361,9 +361,9 @@ Rehearsal sintetis satu bulan diuji terhadap pembukuan manual yang diharapkan: r
 
 Konfigurasi Midtrans lokal disalin dari `../core-r/.env` atas arahan pengguna: server/client key dan merchant ID terisi, `MIDTRANS_ENABLED=true`, serta `MIDTRANS_PRODUCTION=false` (sandbox). `.env` tetap ignored dengan permission `0600`, dan `.env.testing` tidak memakai credential tersebut. Belum ada transaksi gateway nyata yang dibuat. Foundation Payments Core dapat memakai sandbox; **adapter invoice → checkout → verified receipt/webhook dijadwalkan pada F5**, tidak dianggap selesai oleh konfigurasi credential ini.
 
-## WiFi: paket, pelanggan, dan tagihan (F4 tahap 1)
+## WiFi, settlement, dan benefit galon (F4)
 
-`Modules/Wifi` menghubungkan vendor F2, Household, dan billing F3. Tahap ini mencakup pendaftaran serta penagihan; **settlement/remittance, advance/receivable, eligibility dan ledger/claim galon belum diimplementasikan**. Status rinci ada di `plan-be.md`.
+`Modules/Wifi` menghubungkan vendor F2, Household, dan billing F3. Modul mencakup pendaftaran, penagihan, settlement/remittance, advance/recovery, dan ledger/claim galon. Sign-off kebijakan dan rekonsiliasi data pilot nyata masih diperlukan; status rinci ada di `plan-be.md`.
 
 | Method | Endpoint `/api/wifi` | Fungsi |
 |---|---|---|
@@ -374,7 +374,7 @@ Konfigurasi Midtrans lokal disalin dari `../core-r/.env` atas arahan pengguna: s
 | POST | `/customers/{customer}/end` | Jadwalkan akhir langganan, `ends_on` eksklusif |
 | POST | `/customers/{customer}/bill` | Terbitkan invoice untuk `period=YYYY-MM` |
 
-Semua POST memerlukan `Idempotency-Key` 8–128 karakter; semua ID adalah UUID publik. Daftar memakai cursor, `per_page` 1–100, serta filter `vendor_id`. Permission `wifi.manage` diberikan kepada super-admin dan bendahara RT/RW; penerbitan tagihan juga memerlukan `invoices.manage`. Ketua RT/RW mendapat `wifi.view`. Role `vendor-wifi` harus dipasang melalui **assignment scope VENDOR**, sehingga hanya membaca paket/pelanggan vendor sendiri, tanpa kemampuan menagih atau akses NIK/KK, data resident, receipt, dan buku kas. Vendor nonaktif kehilangan akses operasional. Warga aktif dapat membaca langganan/paket Household sendiri.
+Semua POST memerlukan `Idempotency-Key` 8–128 karakter; semua ID adalah UUID publik. Daftar memakai cursor, `per_page` 1–100, serta filter `vendor_id`. Permission `wifi.manage` diberikan kepada super-admin dan bendahara RT/RW; penerbitan tagihan juga memerlukan `invoices.manage`. Ketua RT/RW mendapat `wifi.view`. Role `vendor-wifi` harus dipasang melalui **assignment scope VENDOR**, sehingga hanya membaca paket/pelanggan/benefit vendor sendiri serta mencatat reservasi dan pengantaran melalui `wifi.deliver`, tanpa kemampuan menagih atau akses NIK/KK, data resident, receipt, dan buku kas. Vendor nonaktif kehilangan akses operasional. Warga aktif dapat membaca langganan/paket Household sendiri.
 
 Urutan setup:
 
@@ -389,6 +389,53 @@ Kebijakan tahap awal: aktivasi di tengah bulan ditagih **satu bulan penuh tanpa 
 
 Invoice menyimpan snapshot nominal/due date/settle-by dan memakai subject `wifi`. Endpoint generate umum F3 menolak payment type yang telah terikat paket; penerbitan wajib melalui pelanggan WiFi. Generate ulang, termasuk dua request bersamaan, mengembalikan invoice yang sama. Relasi bill–invoice append-only di PostgreSQL. Invoice yang dibatalkan tetap memiliki histori dan tidak otomatis diterbitkan ulang. Tagihan baru mengikuti penutupan periode F3; replay tetap memeriksa akses terbaru. Household nonaktif atau berubah wilayah tidak dapat ditagih melalui langganan lama.
 
+### Settlement, talangan, dan rekonsiliasi
+
+Permission `wifi.settle` diberikan kepada super-admin dan bendahara sesuai scope RT/RW. Semua POST tetap memerlukan `Idempotency-Key`, nominal dihitung/ditinjau server, dan mutasi memakai lock RW serta transaksi database yang sama dengan cashbook, audit, dan idempotency. Ini adalah **pencatatan setoran/refund yang dilakukan pengurus**, bukan perintah transfer uang ke bank vendor.
+
+| Method | Endpoint `/api/wifi` | Perilaku |
+|---|---|---|
+| GET | `/bills`, `/bills/{id}` | Bill yang dapat dilihat oleh pengurus, vendor terkait, atau Household sendiri; eligibility tanpa membocorkan data finance |
+| GET | `/bills/{bill}/settlement` | Rekonsiliasi finance: nominal, pembayaran pada cutoff, setoran, dana receipt, advance issued/recovered/outstanding |
+| POST | `/bills/{bill}/remit` | Catat satu setoran penuh ke vendor; nominal berasal dari invoice |
+| POST | `/bills/{bill}/recover` | Pulihkan talangan dari alokasi receipt baru yang belum dipakai |
+| GET | `/finance`, `/finance/{id}` | Histori finance, receipt sumber beserta nominal, ID jurnal, dan relasi reversal |
+| POST | `/finance/{finance}/reverse` | Balik seluruh jurnal operasi itu; recovery harus dibalik sebelum remittance induknya |
+
+Konfigurasi tambahan pada **pembuatan paket**: `remit_day` default 28 (minimal `settle_day`, maksimal 28), `allow_advance` default false, `gallon_quota` default 10 (1–1000), dan `claim_days` default 30 (1–365). Paket lama memperoleh default tersebut. Konfigurasi paket tidak diedit secara retroaktif; untuk kebijakan baru buat paket pengganti dan pindahkan langganan pada batas bulan.
+
+Cutoff adalah akhir tanggal `settle_by` dalam timezone aplikasi. Eligibility baru final setelah tanggal itu berakhir: invoice issued harus lunas dari receipt sah dengan `paid_on <= settle_by`; receipt yang telah dibalik tidak dihitung. Tanggal pembayaran manual adalah tanggal yang diverifikasi pengurus, sehingga koreksi/backdate sah sebelum period close tetap diperhitungkan. Pembayaran setelah cutoff melunasi invoice, tetapi tidak menambah eligibility galon pada periode tersebut. Advance RT juga tidak membuat warga eligible.
+
+Remit menerima `posted_on` (`YYYY-MM-DD`, tidak di masa depan), `channel=cash|bank`, dan `reference` bukti/referensi setoran (maksimal 150 karakter). Cutoff harus sudah berakhir, dan tanggal posting minimal hari remittance paket pada bulan invoice. Hanya satu remittance aktif per bill; request bersamaan tidak menggandakan setoran. Dana dari receipt diposting keluar pada `pass_through`; kekurangannya ditolak bila advance mati, atau dicatat sebagai pengurangan kas operasional dengan piutang advance terpisah bila advance aktif. Nominal invoice tetap utuh dan tidak ada income operasional baru.
+
+Recovery menerima field remit ditambah `amount` integer rupiah. Jumlahnya tidak boleh melebihi piutang tersisa dan harus ditopang receipt yang belum digunakan untuk remittance/recovery. Ledger memindahkan nominal dari fund titipan ke fund operasional pada channel yang dipilih; total kas tidak berubah. Pemindahan fisik kas/bank, bila diperlukan, tetap dicatat melalui transfer F3.
+
+Reversal menerima `posted_on` dan `reference` alasan/refund. Tidak boleh mendahului tanggal operasi asal atau masuk periode tertutup. Tabel finance, link receipt/jurnal, serta cashbook append-only. Endpoint reversal jurnal umum menolak jurnal WiFi; gunakan endpoint finance di atas agar piutang dan jurnal tidak terpisah. Receipt sumber tidak dapat dibalik selama dipakai finance aktif. Setelah reversal, histori asli tetap ada dan operasi pengganti memakai key baru.
+
+Contoh rekonsiliasi sintetis yang diuji: invoice Rp150.000, receipt Rp50.000, setoran vendor Rp150.000 → Rp50.000 dana titipan + Rp100.000 advance. Receipt susulan Rp100.000 dan recovery Rp100.000 → advance outstanding Rp0, saldo akhir kas terkait Rp0, tanpa income operasional. Report settlement bersifat kondisi terkini; laporan kas per periode dan close snapshot tetap melalui F3.
+
+### Kuota dan klaim galon
+
+| Method | Endpoint `/api/wifi` | Perilaku |
+|---|---|---|
+| POST | `/bills/{bill}/grant` | Pengurus memberikan kuota sekali untuk bill eligible |
+| GET | `/benefits`, `/benefits/{id}` | Kuota, available/reserved/confirmed, expiry, status, dan flag server `claimable` |
+| POST | `/benefits/{benefit}/reserve` | Vendor mereservasi `quantity` dengan `reference` pengantaran |
+| GET | `/claims`, `/claims/{id}` | Status klaim dalam scope |
+| POST | `/claims/{claim}/deliver` | Vendor mencatat sudah diantar; belum menjadi konsumsi final |
+| POST | `/claims/{claim}/confirm` | Anggota Household aktif mengonfirmasi penerimaan |
+| POST | `/claims/{claim}/reverse` | Balik reservasi/pengantaran; klaim confirmed hanya boleh dibalik pengurus |
+| POST | `/benefits/{benefit}/reverse` | Balik grant setelah tidak ada klaim pending atau confirmed |
+| GET | `/gallon-ledger` | Histori grant/reserve/claim/confirm/expire/reverse dengan delta tiap saldo |
+
+Daftar memakai cursor dan `per_page` 1–100. Filter `bill_id` tersedia pada semua koleksi di atas; `benefit_id` pada claims/gallon-ledger. Seluruh ID berupa UUID publik. Finance hanya terlihat oleh pemegang `wifi.settle`; koleksi operasional mengikuti scope pelanggan dan tidak mengekspos identitas sensitif.
+
+Grant dilakukan eksplisit oleh pengurus setelah memeriksa eligibility. Kuota hanya diberikan sekali per bill, termasuk bila grant tersebut kemudian dibalik. Expiry adalah `settle_by + claim_days`, inklusif. `reserve` menerima quantity positif dan reference maksimal 100 karakter; reference unik per vendor mencegah duplikasi meskipun client mengganti idempotency key. Reserve memindahkan saldo available ke reserved, deliver tidak mengubah saldo, dan confirm memindahkan reserved ke confirmed. Pembuat klaim tidak boleh mengonfirmasi sendiri sekalipun juga anggota Household. Konfirmasi awal memakai akun warga terautentikasi, tanpa PIN terpisah.
+
+Reversal memerlukan `reason` maksimal 2000 karakter. Sebelum expiry, reversal klaim mengembalikan kuota; sesudah expiry tidak menambah kuota yang dapat dipakai. Untuk membalik receipt, balik dahulu finance aktif dan benefit galon aktif/confirmed yang terkait. Ini menjaga koreksi pembayaran tidak meninggalkan konsumsi tanpa dasar pembayaran.
+
+Scheduler `wifi:expire-benefits` berjalan setiap hari pukul 00:10. Kuota tidak terpakai serta reservasi/pengantaran belum dikonfirmasi kedaluwarsa tanpa dihitung sebagai konsumsi final. Endpoint mutasi menolak benefit lewat expiry meskipun scheduler belum berjalan; flag `claimable` juga langsung false. Ledger append-only PostgreSQL merekam seluruh delta, dan constraint/proses transaksi menjaga saldo tidak negatif. Realtime durable events `wifi.benefit.updated` dan `wifi.claim.updated` memberi tahu Household saat grant, delivery, konfirmasi, reversal, atau expiry.
+
 ## Tunnel webhook Midtrans lokal
 
 Tunnel khusus memakai Cloudflare Quick Tunnel dan Nginx bersama `dev-nginx` pada `docker-network`. Tunnel hanya membuka **POST `/api/payments/webhooks/midtrans`**. Root, `.env`, API lain, Swagger, dan health tidak dipublikasikan. Tidak ada PostgreSQL/Redis/Nginx tambahan dan tunnel `core-r` tetap terpisah.
@@ -399,11 +446,12 @@ Jalankan dari root project pada host:
 scripts/tunnel/webhook.sh start
 scripts/tunnel/webhook.sh url
 scripts/tunnel/webhook.sh stop
+scripts/tunnel/webhook.sh renew  # hanya jika Quick Tunnel lama tidak berlaku
 ```
 
-`start` memasang `scripts/tunnel/nginx.conf` ke `/etc/nginx/conf.d/rukun-webhook-tunnel.conf` pada Nginx bersama, memvalidasi dan me-reload Nginx, lalu menjalankan `compose.tunnel.yml`. Listener `18085` hanya digunakan melalui jaringan Docker; tidak ada port host baru. Jika URL belum tersedia, ulangi perintah `url` setelah beberapa detik. `stop` menghentikan connector Rukun; layanan bersama dan connector Core R tetap berjalan.
+`start` memasang `scripts/tunnel/nginx.conf` ke `/etc/nginx/conf.d/rukun-webhook-tunnel.conf` pada Nginx bersama, memvalidasi dan me-reload Nginx, lalu menjalankan `compose.tunnel.yml`. Listener `18085` hanya digunakan melalui jaringan Docker; tidak ada port host baru. Jika URL belum tersedia, ulangi perintah `url` setelah beberapa detik. `stop` menghentikan connector Rukun; layanan bersama dan connector Core R tetap berjalan. `url` membaca log sejak container mulai agar URL tetap ditemukan setelah layanan berjalan lama. Bila Cloudflare melaporkan `Tunnel not found`, jalankan `renew`, ambil URL baru, lalu perbarui dashboard sandbox. Quick Tunnel lama pernah tidak berlaku lagi pada 30 September 2026; ini berbeda dari health backend lokal.
 
-Salin hasil perintah `url` ke **Payment Notification URL di dashboard Midtrans sandbox**. `APP_URL` tetap `https://rukun.p85.test:8443`; tunnel ini tidak menyediakan halaman checkout/redirect. Dashboard Midtrans belum diubah otomatis. Quick Tunnel menyediakan URL sementara yang dapat berubah setelah connector dibuat ulang/restart; cek kembali `url` dan perbarui dashboard bila berubah. Untuk endpoint pilot yang stabil, gunakan named tunnel/domain tersendiri. Lihat [dokumentasi Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/).
+Salin hasil perintah `url` ke **Payment Notification URL di dashboard Midtrans sandbox**. `APP_URL` tetap `https://rukun.p85.test:8443`; tunnel ini tidak menyediakan halaman checkout/redirect. **Pengguna sudah memasang URL awal; Quick Tunnel itu kemudian tidak berlaku dan telah diperbarui pada 30 September 2026.** URL pengganti `https://belongs-strain-asia-outsourcing.trycloudflare.com/api/payments/webhooks/midtrans` sudah diuji signed sandbox (200), tetapi perlu dipasang ulang pada dashboard. Gunakan hasil `url` sebagai nilai terbaru. Quick Tunnel menyediakan URL sementara yang dapat berubah setelah connector dibuat ulang/restart; cek kembali `url` dan perbarui dashboard bila berubah. Untuk endpoint pilot yang stabil, gunakan named tunnel/domain tersendiri. Lihat [dokumentasi Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/).
 
 Verifikasi lokal melalui URL publik pada 29 September 2026: webhook sandbox `payment_notif_test_*` dengan signature valid menghasilkan `200`, `received=true`, `test=true`; signature tidak valid ditolak `401`; root, `.env`, dan `/api/health` menghasilkan `404`. Pengujian ini tidak membuat transaksi gateway dan tidak menggantikan pengujian adapter invoice/receipt F5. Credential tetap hanya pada `.env` ignored, tidak disalin ke compose/script tunnel.
 

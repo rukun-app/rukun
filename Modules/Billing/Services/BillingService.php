@@ -23,6 +23,7 @@ use Modules\Community\Services\CommunityAudit;
 use Modules\Community\Services\SensitiveIdentifier;
 use Modules\Files\Models\StoredFile;
 use Modules\Wifi\Models\WifiPackage;
+use Modules\Wifi\Services\WifiFinancialGuard;
 
 class BillingService
 {
@@ -90,7 +91,7 @@ class BillingService
             $period = $data['period'].'-01';
             $this->open($area, $period);
             $type = PaymentType::query()->where('public_id', $data['payment_type_id'])->firstOrFail();
-            abort_if(! $managedWifi && WifiPackage::query()->where('payment_type_id', $type->id)->exists(), 409, 'Gunakan endpoint tagihan pelanggan WiFi.');
+            abort_if(! $managedWifi && WifiPackage::query()->where('payment_type_id', $type->id)->exists(), 409, __('wifi::messages.managed_invoice'));
             abort_unless(in_array($type->area_id, [$area->id, $area->parent_id], true), 422);
             $query = Household::query()->where('area_id', $area->id)->where('status', 'active');
             if (isset($data['household_ids'])) {
@@ -212,6 +213,7 @@ class BillingService
             $this->open($area, $data['posted_on']);
             abort_if($data['posted_on'] < $receipt->paid_on->toDateString(), 422);
             abort_if(ReceiptReversal::query()->where('receipt_id', $receipt->id)->exists(), 409);
+            WifiFinancialGuard::receipt($receipt->id);
             $reversal = ReceiptReversal::query()->create(['receipt_id' => $receipt->id, 'area_id' => $area->id, 'posted_on' => $data['posted_on'], 'reason' => $data['reason'], 'created_by' => $actor->id]);
             foreach (LedgerEntry::query()->where('receipt_id', $receipt->id)->whereNull('reverses_id')->get() as $entry) {
                 $this->reverseEntry($actor, $entry, $data);
@@ -282,6 +284,7 @@ class BillingService
 
         return $this->command($actor, $area, 'ledger.adjust', 'journal.reverse', $key, ['entry' => $entry->public_id, ...$data], function () use ($actor, $entry, $area, $data): array {
             abort_unless(in_array($entry->kind, ['expense', 'adjustment', 'transfer'], true), 422);
+            WifiFinancialGuard::ledger($entry->id);
             $this->open($area, $data['posted_on']);
             if ($entry->kind === 'transfer') {
                 foreach (LedgerEntry::query()->where('transfer_group', $entry->transfer_group)->where('kind', 'transfer')->orderBy('id')->get() as $leg) {

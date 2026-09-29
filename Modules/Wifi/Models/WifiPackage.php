@@ -8,6 +8,6 @@ class WifiPackage extends BillingModel
 {
     protected function casts(): array
     {
-        return ['due_day' => 'integer', 'settle_day' => 'integer'];
+        return ['due_day' => 'integer', 'settle_day' => 'integer', 'allow_advance' => 'boolean', 'remit_day' => 'integer', 'gallon_quota' => 'integer', 'claim_days' => 'integer'];
     }
 }

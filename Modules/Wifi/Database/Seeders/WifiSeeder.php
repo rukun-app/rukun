@@ -9,7 +9,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 class WifiSeeder extends Seeder
 {
-    public const PERMISSIONS = ['wifi.view', 'wifi.manage'];
+    public const PERMISSIONS = ['wifi.view', 'wifi.manage', 'wifi.settle', 'wifi.deliver'];
 
     public function run(): void
     {
@@ -20,6 +20,7 @@ class WifiSeeder extends Seeder
         foreach (['super-admin', 'bendahara-rw', 'bendahara-rt'] as $role) {
             Role::findOrCreate($role, 'web')->givePermissionTo(self::PERMISSIONS);
         }
+        Role::findOrCreate('vendor-wifi', 'web')->givePermissionTo('wifi.deliver');
         foreach (['ketua-rw', 'ketua-rt', 'vendor-wifi'] as $role) {
             Role::findOrCreate($role, 'web')->givePermissionTo('wifi.view');
         }
