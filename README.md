@@ -71,7 +71,7 @@ Verifikasi baseline F0 lokal 28 September 2026: **96 test / 549 assertions**, Pi
 | Rukun F2 | Selesai lokal | Household, Resident, membership, scope HOUSEHOLD/VENDOR, sensitive identifiers, dan import/export CSV/XLSX |
 | Rukun F3 | Selesai lokal | Tariff snapshot, invoice, cash receipt, transfer manual, allocation, ledger, expense, reversal, dan tutup buku |
 
-Verifikasi terakhir setelah F3 (29 September 2026): **145 test lulus dengan 997 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**100 paths / 127 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder F3 telah diterapkan di development; sinyal restart worker dikirim dan HTTPS health database/Redis/storage sehat. Midtrans lokal sudah dikonfigurasi sandbox dari Core R; tidak ada transaksi gateway nyata dibuat.
+Verifikasi terakhir setelah F4 tahap 1 (29 September 2026): **154 test lulus dengan 1064 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**106 paths / 135 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder WiFi telah diterapkan di development; worker sudah restart dan HTTPS health database/Redis/storage sehat. Tunnel webhook-only aktif dan signature sandbox valid/invalid sudah diuji; tidak ada transaksi gateway nyata dibuat. Settlement, advance, dan galon F4 belum selesai.
 
 ## Memulai proyek baru
 
@@ -360,6 +360,52 @@ Event durable tersedia melalui Core `/api/events`: `invoice.created`, `invoice.d
 Rehearsal sintetis satu bulan diuji terhadap pembukuan manual yang diharapkan: receipt Rp100.000, expense Rp25.000, transfer Rp30.000 kas ke bank, dan adjustment yang dibalik menghasilkan kas Rp45.000 + bank Rp30.000 = Rp75.000. Test lain memisahkan fund titipan/operasional, memeriksa closed-period arrears, dan rollback approval saat saldo invoice sudah habis. Perbandingan dengan buku kas pilot nyata belum dilakukan karena data operasional belum tersedia.
 
 Konfigurasi Midtrans lokal disalin dari `../core-r/.env` atas arahan pengguna: server/client key dan merchant ID terisi, `MIDTRANS_ENABLED=true`, serta `MIDTRANS_PRODUCTION=false` (sandbox). `.env` tetap ignored dengan permission `0600`, dan `.env.testing` tidak memakai credential tersebut. Belum ada transaksi gateway nyata yang dibuat. Foundation Payments Core dapat memakai sandbox; **adapter invoice → checkout → verified receipt/webhook dijadwalkan pada F5**, tidak dianggap selesai oleh konfigurasi credential ini.
+
+## WiFi: paket, pelanggan, dan tagihan (F4 tahap 1)
+
+`Modules/Wifi` menghubungkan vendor F2, Household, dan billing F3. Tahap ini mencakup pendaftaran serta penagihan; **settlement/remittance, advance/receivable, eligibility dan ledger/claim galon belum diimplementasikan**. Status rinci ada di `plan-be.md`.
+
+| Method | Endpoint `/api/wifi` | Fungsi |
+|---|---|---|
+| GET / POST | `/packages` | Daftar scoped / daftarkan paket dengan payment type khusus WiFi |
+| GET | `/packages/{id}` | Detail paket |
+| GET / POST | `/customers` | Daftar scoped / aktivasi langganan Household |
+| GET | `/customers/{id}` | Detail langganan; status `scheduled`, `active`, atau `ended` |
+| POST | `/customers/{customer}/end` | Jadwalkan akhir langganan, `ends_on` eksklusif |
+| POST | `/customers/{customer}/bill` | Terbitkan invoice untuk `period=YYYY-MM` |
+
+Semua POST memerlukan `Idempotency-Key` 8–128 karakter; semua ID adalah UUID publik. Daftar memakai cursor, `per_page` 1–100, serta filter `vendor_id`. Permission `wifi.manage` diberikan kepada super-admin dan bendahara RT/RW; penerbitan tagihan juga memerlukan `invoices.manage`. Ketua RT/RW mendapat `wifi.view`. Role `vendor-wifi` harus dipasang melalui **assignment scope VENDOR**, sehingga hanya membaca paket/pelanggan vendor sendiri, tanpa kemampuan menagih atau akses NIK/KK, data resident, receipt, dan buku kas. Vendor nonaktif kehilangan akses operasional. Warga aktif dapat membaca langganan/paket Household sendiri.
+
+Urutan setup:
+
+1. Buat vendor melalui F2 dan payment type melalui F3 pada RT atau RW induk: `collection_policy=must_settle_in_period`, `fund_classification=pass_through`. Payment type harus belum memiliki invoice dan hanya boleh terikat ke satu paket.
+2. Tambahkan tariff F3 dengan `amount` integer rupiah dan `starts_at` paling lambat tanggal pertama bulan tagihan.
+3. `POST /api/wifi/packages` dengan `vendor_id`, `payment_type_id`, `name`, `due_day`, `settle_day`. Kedua hari berada pada 1–28 dan `settle_day >= due_day`, sehingga valid pada setiap bulan. Paket/binding bersifat tetap; perubahan nominal memakai tariff efektif F3.
+4. `POST /api/wifi/customers` dengan `package_id`, `household_id`, `starts_on` (`YYYY-MM-DD`). Paket harus milik RT Household atau RW induknya. Satu Household hanya boleh memiliki satu langganan per bulan, termasuk saat pindah paket/vendor.
+5. `POST /api/wifi/customers/{customer}/bill` dengan `{"period":"2026-09"}`. Response berisi `public_id` bill dan `invoice_id`; gunakan endpoint invoice F3 untuk membaca saldo/status. Nominal diambil dari tariff server, bukan input client.
+6. Pembayaran cash/manual menggunakan receipt dan allocation F3. Cicilan tetap didukung; semua penerimaan masuk klasifikasi `pass_through`, bukan dana operasional RT.
+
+Kebijakan tahap awal: aktivasi di tengah bulan ditagih **satu bulan penuh tanpa prorata**. Akhir langganan wajib hari pertama bulan setelah aktivasi, eksklusif, dan tidak boleh memotong periode yang telah ditagih. Untuk ganti paket/vendor, jadwalkan akhir langganan lama lalu buat langganan baru mulai bulan berikutnya. Konfirmasikan kebijakan ini sebelum pilot nyata.
+
+Invoice menyimpan snapshot nominal/due date/settle-by dan memakai subject `wifi`. Endpoint generate umum F3 menolak payment type yang telah terikat paket; penerbitan wajib melalui pelanggan WiFi. Generate ulang, termasuk dua request bersamaan, mengembalikan invoice yang sama. Relasi bill–invoice append-only di PostgreSQL. Invoice yang dibatalkan tetap memiliki histori dan tidak otomatis diterbitkan ulang. Tagihan baru mengikuti penutupan periode F3; replay tetap memeriksa akses terbaru. Household nonaktif atau berubah wilayah tidak dapat ditagih melalui langganan lama.
+
+## Tunnel webhook Midtrans lokal
+
+Tunnel khusus memakai Cloudflare Quick Tunnel dan Nginx bersama `dev-nginx` pada `docker-network`. Tunnel hanya membuka **POST `/api/payments/webhooks/midtrans`**. Root, `.env`, API lain, Swagger, dan health tidak dipublikasikan. Tidak ada PostgreSQL/Redis/Nginx tambahan dan tunnel `core-r` tetap terpisah.
+
+Jalankan dari root project pada host:
+
+```sh
+scripts/tunnel/webhook.sh start
+scripts/tunnel/webhook.sh url
+scripts/tunnel/webhook.sh stop
+```
+
+`start` memasang `scripts/tunnel/nginx.conf` ke `/etc/nginx/conf.d/rukun-webhook-tunnel.conf` pada Nginx bersama, memvalidasi dan me-reload Nginx, lalu menjalankan `compose.tunnel.yml`. Listener `18085` hanya digunakan melalui jaringan Docker; tidak ada port host baru. Jika URL belum tersedia, ulangi perintah `url` setelah beberapa detik. `stop` menghentikan connector Rukun; layanan bersama dan connector Core R tetap berjalan.
+
+Salin hasil perintah `url` ke **Payment Notification URL di dashboard Midtrans sandbox**. `APP_URL` tetap `https://rukun.p85.test:8443`; tunnel ini tidak menyediakan halaman checkout/redirect. Dashboard Midtrans belum diubah otomatis. Quick Tunnel menyediakan URL sementara yang dapat berubah setelah connector dibuat ulang/restart; cek kembali `url` dan perbarui dashboard bila berubah. Untuk endpoint pilot yang stabil, gunakan named tunnel/domain tersendiri. Lihat [dokumentasi Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/).
+
+Verifikasi lokal melalui URL publik pada 29 September 2026: webhook sandbox `payment_notif_test_*` dengan signature valid menghasilkan `200`, `received=true`, `test=true`; signature tidak valid ditolak `401`; root, `.env`, dan `/api/health` menghasilkan `404`. Pengujian ini tidak membuat transaksi gateway dan tidak menggantikan pengujian adapter invoice/receipt F5. Credential tetap hanya pada `.env` ignored, tidak disalin ke compose/script tunnel.
 
 ## Multilingual API
 

@@ -6,6 +6,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Modules\Billing\Database\Seeders\BillingSeeder;
 use Modules\Community\Database\Seeders\CommunitySeeder;
+use Modules\Wifi\Database\Seeders\WifiSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -16,6 +17,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call([RbacSeeder::class, CommunitySeeder::class, BillingSeeder::class]);
+        $this->call([RbacSeeder::class, CommunitySeeder::class, BillingSeeder::class, WifiSeeder::class]);
     }
 }

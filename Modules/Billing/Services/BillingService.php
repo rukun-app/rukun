@@ -22,6 +22,7 @@ use Modules\Community\Models\Household;
 use Modules\Community\Services\CommunityAudit;
 use Modules\Community\Services\SensitiveIdentifier;
 use Modules\Files\Models\StoredFile;
+use Modules\Wifi\Models\WifiPackage;
 
 class BillingService
 {
@@ -80,15 +81,16 @@ class BillingService
         });
     }
 
-    public function generate(User $actor, string $key, array $data): array
+    public function generate(User $actor, string $key, array $data, bool $managedWifi = false): array
     {
         $area = $this->area($data['area_id']);
         abort_unless($area->kind === 'rt', 422);
 
-        return $this->command($actor, $area, 'invoices.manage', 'invoice.generate', $key, $data, function () use ($actor, $area, $data): array {
+        return $this->command($actor, $area, 'invoices.manage', 'invoice.generate', $key, $data, function () use ($actor, $area, $data, $managedWifi): array {
             $period = $data['period'].'-01';
             $this->open($area, $period);
             $type = PaymentType::query()->where('public_id', $data['payment_type_id'])->firstOrFail();
+            abort_if(! $managedWifi && WifiPackage::query()->where('payment_type_id', $type->id)->exists(), 409, 'Gunakan endpoint tagihan pelanggan WiFi.');
             abort_unless(in_array($type->area_id, [$area->id, $area->parent_id], true), 422);
             $query = Household::query()->where('area_id', $area->id)->where('status', 'active');
             if (isset($data['household_ids'])) {

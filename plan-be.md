@@ -11,7 +11,7 @@
 
 ## Status Implementasi
 
-> **Status per 29 September 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
+> **Status per 29 September 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4 tahap 1 (paket/pelanggan/tagihan WiFi) diimplementasikan; settlement dan galon belum selesai; F5–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
 
 | Fase | Nama | Status |
 |---|---|---|
@@ -19,7 +19,7 @@
 | F1 | Identity, Account Provisioning & Area | Selesai termasuk dependency F2 |
 | F2 | Household, Resident & Scoped Authorization | Selesai lokal; dataset pilot nyata belum direkonsiliasi |
 | F3 | Billing, Manual Payments & Cashbook | Selesai lokal; buku kas pilot nyata belum direkonsiliasi |
-| F4 | WiFi Collective & Gallon Benefit | Belum dimulai |
+| F4 | WiFi Collective & Gallon Benefit | Tahap 1 diimplementasikan; settlement dan galon belum selesai |
 | F5 | Payment Gateway / QRIS | Belum dimulai |
 | F6 | Announcements & Citizen Services | Belum dimulai |
 | F7 | Patrol & Community Activities | Belum dimulai |
@@ -111,6 +111,26 @@ Keputusan F2: import/export umum tidak memuat NIK/KK; identifier sensitif dikelo
 
 Keputusan F3: rupiah integer, semua POST memakai Idempotency-Key persisten, partial allocation tidak menyisakan saldo tak teralokasi, reviewer berbeda dari pembuat, dan koreksi menggunakan reversal. Close membekukan bulan yang dipilih serta menolak transaksi mundur ke bulan sebelumnya. Lock mutasi memakai RW induk; ledger dan audit/events commit bersama. Cashbook mengizinkan saldo negatif untuk rekonsiliasi, bukan kontrol saldo rekening bank. F4 dimulai setelah gate lokal F3 selesai; remote CI, staging, dan rekonsiliasi data pilot nyata tetap gate sebelum production pilot.
 
+### Checklist F4
+
+- [x] Paket WiFi mengikat vendor dan payment type khusus F3, wajib `must_settle_in_period` + `pass_through`.
+- [x] Pelanggan menghubungkan Household, paket/vendor, tanggal aktivasi/akhir, dan konfigurasi tanggal tagihan; periode satu Household tidak bertumpang tindih.
+- [x] Scope RT/RW/VENDOR dan akses Household sendiri; vendor tidak memperoleh akses finance atau identitas sensitif.
+- [x] Invoice per pelanggan/bulan, snapshot tariff, due date/settle-by configurable, idempotency persisten, dan relasi bill append-only.
+- [x] Endpoint general billing tidak dapat melewati jalur pelanggan WiFi; pembayaran parsial menggunakan receipt/allocation F3 dan dana titipan.
+- [x] Test konkurensi dua proses menghasilkan satu invoice/bill; replay setelah pencabutan scope ditolak; closed period, inactive vendor dan mismatch area diuji.
+- [x] Tunnel webhook-only Rukun berjalan melalui Nginx bersama dan Cloudflare Quick Tunnel; signature valid 200, invalid 401, path lain 404. Credential tetap ignored.
+- [x] README dan OpenAPI tahap 1 diperbarui.
+- [x] Gate tahap 1: 154 test / 1064 assertions, Pint, OpenAPI 106 paths / 135 operations, secret scan dan diff check lulus. Migration/seeder development diterapkan, worker restart, dan HTTPS health database/Redis/storage sehat.
+- [ ] Settlement eligibility pada cutoff, remittance vendor dan rekonsiliasi receipt WiFi.
+- [ ] Advance/receivable saat RT mendahulukan dana, reversal dan rekonsiliasinya.
+- [ ] Gallon ledger append-only: grant/reserve/claim/confirm/expire/reverse, quota default 10 dan saldo tidak negatif.
+- [ ] Claim vendor → konfirmasi warga, reversal, deduplikasi dan pengujian konkurensi kuota.
+- [ ] Sign-off kebijakan remittance/advance, prorata dan metode konfirmasi sebelum pilot nyata; rekonsiliasi satu periode WiFi/galon nyata.
+- [ ] Konfigurasi Payment Notification URL di dashboard Midtrans oleh pengguna; adapter invoice/gateway tetap F5.
+
+Keputusan tahap 1: tagihan bulanan penuh tanpa prorata; aktivasi boleh di tengah bulan, akhir langganan eksklusif pada hari pertama bulan berikutnya. Hari due/settle configurable 1–28. F4 **belum selesai**; pekerjaan berikutnya adalah settlement/remittance/advance, lalu benefit galon. Gate CI remote dan staging tetap sebelum production pilot.
+
 ### Log Implementasi
 
 | Tanggal | Fase | Perubahan / bukti | Tindak lanjut |
@@ -122,6 +142,7 @@ Keputusan F3: rupiah integer, semua POST memakai Idempotency-Key persisten, part
 | 2026-09-28 | F1 | Identity email/HP, UUID user, first-login password change, provisioning/recovery scoped dan idempotent, output sementara terenkripsi, area CRUD, temporal scope GLOBAL/RW/RT, audit satu transaksi, constraint DB, en/id, dan OpenAPI selesai. Migration dan seeder diterapkan di development. | 116 test / 686 assertions, Pint, OpenAPI 56 paths / 70 operations, secret scan, serta diff check lulus. Integrasi Resident/Household, import create_account, scope HOUSEHOLD/VENDOR, dan household-assisted recovery dilanjutkan di F2. |
 | 2026-09-29 | F2 | Household/Resident, histori satu membership aktif, encrypted NIK/KK dan audit akses, scope HOUSEHOLD/VENDOR, account linking/provisioning, household recovery, sinkronisasi scope/token saat mutasi, serta Core DataTransfer CSV/XLSX dengan validasi/replay/hasil error selesai. README dan OpenAPI diperbarui. Migration/seeder development diterapkan; worker diberi sinyal restart dan health HTTPS sehat. | 130 test / 846 assertions, Pint, OpenAPI 71 paths / 92 operations, secret scan dan diff check lulus. Rehearsal sintetis terrekonsiliasi; dataset pilot nyata, CI remote, dan staging tetap belum diverifikasi sebelum production pilot. F3 belum dimulai. |
 | 2026-09-29 | F3 | Billing scoped, tariff snapshot, invoice draft/issue/cancel, partial cash receipt dan alokasi, transfer manual dengan independent review/evidence, ledger append-only, expense, reversal dua sisi, period close/report snapshot, serta durable notification/scheduler selesai. Konfigurasi Midtrans sandbox disalin ke .env ignored. Migration/seeder development dan health lulus. | 145 test / 997 assertions (termasuk dua proses receipt bersamaan), Pint, OpenAPI 100 paths / 127 operations, secret scan, dan diff check lulus. Rehearsal sintetis satu bulan cocok; pembukuan pilot nyata belum dibandingkan. F4 belum dimulai; adapter invoice/gateway tetap F5. |
+| 2026-09-29 | F4 tahap 1 + tunnel | Paket/pelanggan scoped, aktivasi/akhir langganan, billing khusus WiFi dengan snapshot F3, pembayaran partial pass-through, idempotency dan histori bill immutable selesai. Tunnel Rukun aktif, hanya POST webhook Midtrans; signature valid 200, invalid 401, path lain 404. Migration/seeder development, worker restart dan health lulus. | 154 test / 1064 assertions (termasuk dua proses generate), Pint, OpenAPI 106 paths / 135 operations, secret scan dan diff check lulus. F4 belum selesai: settlement/remittance/advance serta ledger/claim galon berikutnya. Pengguna memasang URL tunnel dari scripts/tunnel/webhook.sh url ke dashboard sandbox; URL dapat berubah setelah restart. Adapter invoice/gateway tetap F5. |
 
 Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate development fase aktif selesai. CI remote dan staging tetap wajib sebelum production pilot, tetapi tidak menghalangi F1 dan fase development berikutnya.
 
