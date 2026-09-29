@@ -4,18 +4,31 @@ namespace Modules\Realtime;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\DatabaseNotification;
+use Modules\Billing\Models\Invoice;
+use Modules\Billing\Models\PaymentSubmission;
+use Modules\Billing\Models\Receipt;
 use Modules\DataTransfer\Models\DataTransfer;
 use Modules\Payments\Models\Payment;
 
 class EventRegistry
 {
     public const TYPES = [
+        'invoice.created' => ['schema_version' => 1],
+        'invoice.due_soon' => ['schema_version' => 1],
+        'payment_submission.created' => ['schema_version' => 1],
+        'payment_submission.approved' => ['schema_version' => 1],
+        'payment_submission.rejected' => ['schema_version' => 1],
+        'receipt.created' => ['schema_version' => 1],
+
         'notification.created' => ['schema_version' => 1],
         'payment.updated' => ['schema_version' => 1],
         'data_transfer.updated' => ['schema_version' => 1],
     ];
 
     public const RESOURCES = [
+        Invoice::class => 'invoice',
+        PaymentSubmission::class => 'payment_submission',
+        Receipt::class => 'receipt',
         DatabaseNotification::class => 'notification',
         Payment::class => 'payment',
         DataTransfer::class => 'data_transfer',

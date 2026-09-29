@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Modules\Billing\Database\Seeders\BillingSeeder;
 use Modules\Community\Database\Seeders\CommunitySeeder;
 use Modules\Community\Models\Area;
 use Modules\Community\Models\Household;
@@ -32,7 +33,7 @@ class RoleAssignmentController
         $user = User::query()->where('public_id', $data['user_id'])->firstOrFail();
         $role = Role::query()->where('name', $data['role'])->where('guard_name', 'web')->firstOrFail();
         // Foundation permissions remain global and must never be granted through a scoped role.
-        abort_if($role->permissions()->whereNotIn('name', CommunitySeeder::PERMISSIONS)->exists(), 422, __('community::messages.invalid_scoped_role'));
+        abort_if($role->permissions()->whereNotIn('name', [...CommunitySeeder::PERMISSIONS, ...BillingSeeder::PERMISSIONS])->exists(), 422, __('community::messages.invalid_scoped_role'));
         $area = isset($data['area_id']) ? Area::query()->where('public_id', $data['area_id'])->where('kind', $data['scope_type'])->firstOrFail() : null;
         $household = isset($data['household_id']) ? Household::query()->where('public_id', $data['household_id'])->firstOrFail() : null;
         $vendor = isset($data['vendor_id']) ? Vendor::query()->where('public_id', $data['vendor_id'])->firstOrFail() : null;

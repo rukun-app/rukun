@@ -117,7 +117,10 @@ class FileController
         $request->user()->can('delete', $file) || abort(404);
         abort_if($file->attachments()->exists(), 422, __('api.files.attached'));
 
-        DB::transaction(function () use ($file): void {
+        DB::transaction(function () use ($request, $file): void {
+            $file = StoredFile::query()->whereKey($file->id)->lockForUpdate()->firstOrFail();
+            $request->user()->can('delete', $file) || abort(404);
+            abort_if($file->attachments()->exists(), 422, __('api.files.attached'));
             $file->delete();
             Audit::record('file.deleted', $file, ['display_name' => $file->display_name, 'size' => $file->size, 'mime_type' => $file->mime_type]);
             DeleteStoredFile::dispatch($file->public_id, $file->disk, $file->path)->afterCommit();

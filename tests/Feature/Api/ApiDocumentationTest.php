@@ -134,3 +134,13 @@ it('documents population scope, sensitive fields and transfer contracts', functi
         expect(collect($operation['parameters'])->firstWhere('name', 'Idempotency-Key')['required'])->toBeTrue()->and($operation['responses'])->toHaveKey('202');
     }
 });
+
+it('documents integer rupiah and idempotency for the billing lifecycle', function () {
+    $document = $this->getJson('/docs/api/openapi.json')->assertOk()->json();
+    expect($document['components']['schemas']['BillingCashReceipt']['properties']['amount']['type'])->toBe('integer');
+    expect($document['components']['schemas']['BillingInvoice']['properties']['status']['enum'])->toContain('partially_paid', 'cancelled');
+    foreach (['/receipts/cash', '/submissions/{submission}/approve', '/periods/close', '/ledger/{entry}/reverse'] as $path) {
+        $operation = $document['paths']['/api/billing'.$path]['post'];
+        expect(collect($operation['parameters'])->firstWhere('name', 'Idempotency-Key')['required'])->toBeTrue()->and($operation['responses'])->toHaveKeys(['403', '409', '422']);
+    }
+});
