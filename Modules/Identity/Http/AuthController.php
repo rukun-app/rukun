@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Modules\Community\Services\UserContexts;
 use Modules\Identity\Support\LoginIdentifier;
 use Modules\Settings\Settings;
 
@@ -191,6 +192,6 @@ class AuthController
 
     private function userData(User $user): array
     {
-        return ['id' => $user->id, 'public_id' => $user->public_id, 'phone' => $user->phone, 'must_change_password' => $user->must_change_password, 'name' => $user->name, 'email' => $user->email, 'locale' => $user->locale, 'status' => $user->status->value, 'email_verified_at' => $user->email_verified_at?->toISOString(), 'last_login_at' => $user->last_login_at?->toISOString(), 'roles' => $user->getRoleNames()->values(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()];
+        return ['contexts' => app(UserContexts::class)->forUser($user), 'id' => $user->id, 'public_id' => $user->public_id, 'phone' => $user->phone, 'must_change_password' => $user->must_change_password, 'name' => $user->name, 'email' => $user->email, 'locale' => $user->locale, 'status' => $user->status->value, 'email_verified_at' => $user->email_verified_at?->toISOString(), 'last_login_at' => $user->last_login_at?->toISOString(), 'roles' => $user->getRoleNames()->values(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()];
     }
 }

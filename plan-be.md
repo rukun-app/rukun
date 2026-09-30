@@ -136,6 +136,16 @@ Keputusan F3: rupiah integer, semua POST memakai Idempotency-Key persisten, part
 
 Keputusan tahap 1: tagihan bulanan penuh tanpa prorata; aktivasi boleh di tengah bulan, akhir langganan eksklusif pada hari pertama bulan berikutnya. Hari due/settle configurable 1–28. Settlement memakai receipt sah sampai cutoff; pembayaran terlambat dan advance tidak menghasilkan eligibility. Default advance mati, remit day 28, quota 10, claim window 30 hari; semuanya configurable saat membuat paket. Konfirmasi galon melalui akun anggota Household aktif yang berbeda dari pembuat klaim. Remittance adalah pencatatan setoran manual, bukan transfer bank otomatis. Berikutnya F5 setelah gate lokal F4 lulus. Gate CI remote dan staging tetap sebelum production pilot.
 
+### Dataset demo Community dan integrasi FE (30 September 2026)
+
+- [x] Seeder eksplisit `CommunityDemoSeeder`, hanya local/testing, diterapkan pada development: 2 RW, 3 RT, 10 rumah, 40 warga, 25 akun lintas role, satu vendor demo.
+- [x] Setiap rumah memiliki empat anggota; akun warga/pengurus tertaut, role memakai scope temporal tanpa permission global tambahan.
+- [x] Rerun tidak menggandakan data, mereset password/alamat, atau mengaktifkan kembali assignment yang dicabut; akun bootstrap tetap utuh.
+- [x] Password awal acak dan daftar akun disimpan pada manifest private ignored (`0600`); semua 25 password akun development terverifikasi tanpa mencetak secret.
+- [x] Login/me mengirim `contexts`; FE mendukung pengurus scoped dan halaman Keluarga saya untuk alamat/anggota rumah.
+- [x] README backend/FE memuat cara seed, akun per role, batas akses dan lokasi password; OpenAPI diperbarui.
+- [ ] Dataset transaksi invoice/pembayaran/WiFi belum dibuat oleh seeder ini; F5 tetap belum dimulai.
+
 ### Log Implementasi
 
 | Tanggal | Fase | Perubahan / bukti | Tindak lanjut |
@@ -149,6 +159,8 @@ Keputusan tahap 1: tagihan bulanan penuh tanpa prorata; aktivasi boleh di tengah
 | 2026-09-29 | F3 | Billing scoped, tariff snapshot, invoice draft/issue/cancel, partial cash receipt dan alokasi, transfer manual dengan independent review/evidence, ledger append-only, expense, reversal dua sisi, period close/report snapshot, serta durable notification/scheduler selesai. Konfigurasi Midtrans sandbox disalin ke .env ignored. Migration/seeder development dan health lulus. | 145 test / 997 assertions (termasuk dua proses receipt bersamaan), Pint, OpenAPI 100 paths / 127 operations, secret scan, dan diff check lulus. Rehearsal sintetis satu bulan cocok; pembukuan pilot nyata belum dibandingkan. F4 belum dimulai; adapter invoice/gateway tetap F5. |
 | 2026-09-29 | F4 tahap 1 + tunnel | Paket/pelanggan scoped, aktivasi/akhir langganan, billing khusus WiFi dengan snapshot F3, pembayaran partial pass-through, idempotency dan histori bill immutable selesai. Tunnel Rukun aktif, hanya POST webhook Midtrans; signature valid 200, invalid 401, path lain 404. Migration/seeder development, worker restart dan health lulus. | 154 test / 1064 assertions (termasuk dua proses generate), Pint, OpenAPI 106 paths / 135 operations, secret scan dan diff check lulus. F4 belum selesai: settlement/remittance/advance serta ledger/claim galon berikutnya. Pengguna memasang URL tunnel dari scripts/tunnel/webhook.sh url ke dashboard sandbox; URL dapat berubah setelah restart. Adapter invoice/gateway tetap F5. |
 | 2026-09-30 | F4 selesai lokal | Settlement cutoff, remittance receipt-backed, advance/recovery, reversal finance terhubung, ledger/claim galon, konfirmasi anggota Household, expiry scheduler, audit/durable events, serta API/docs selesai. Pengguna telah memasang notification URL awal; Quick Tunnel kemudian tidak berlaku (`Tunnel not found`), diperbarui dan signed webhook URL baru lulus 200. Script url/renew diperbaiki. | 166 test / 1173 assertions, Pint, OpenAPI 126 paths / 155 operations, secret scan dan diff check lulus; migration/seeder development, worker, scheduler dan health terverifikasi. Rekonsiliasi sintetis termasuk proses bersamaan; sign-off kebijakan/data pilot nyata masih pending. URL pengganti perlu dipasang pada dashboard sandbox. Berikutnya F5 invoice–Midtrans. |
+
+| 2026-09-30 | Community demo + FE | Seeder local/testing diterapkan: 2 RW, 3 RT, 10 rumah, 40 warga dan 25 akun; manifest private, rerun aman, scoped contexts login/me dan halaman keluarga FE selesai. README dan kontrak OpenAPI diperbarui. | 170 test backend / 1246 assertions, Pint, OpenAPI 126 paths / 155 operations, 52 unit test FE, 2 browser test scoped (workers=1), typecheck/build/lint/format, secret scan dan diff check lulus. Password 25 akun development terverifikasi. Data transaksi demo belum dibuat; F5 belum dimulai. |
 
 Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate development fase aktif selesai. CI remote dan staging tetap wajib sebelum production pilot, tetapi tidak menghalangi F1 dan fase development berikutnya.
 

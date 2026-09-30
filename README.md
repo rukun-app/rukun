@@ -6,7 +6,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 
 ## Implementasi Rukun
 
-Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F3 selesai untuk development lokal; F4–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
+Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F4 selesai untuk development lokal; F5–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
 
 Template `.env.example` menggunakan database `rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Database development/testing dan bucket sudah diprovisikan; health HTTPS serta uji tulis/baca object storage lulus.
 
@@ -958,3 +958,37 @@ Test mencakup isolasi PostgreSQL/Redis, health, response API, module system, que
 - [ ] Tidak ada credential atau plain text token dalam source, log, atau audit.
 - [ ] `php artisan test` lulus pada PHP 8.5.
 - [ ] `vendor/bin/pint --test` lulus pada PHP 8.5.
+
+## Data demo Community untuk testing FE
+
+Jalankan seeder secara eksplisit pada environment `local` atau `testing`:
+
+```sh
+docker exec -w /var/www/p85/rukun dev-php85 php artisan db:seed --class=CommunityDemoSeeder --no-interaction
+```
+
+Seeder membuat **2 RW, 3 RT, 10 rumah, 40 warga (4 per rumah), 25 akun**, dan satu vendor demo. Rumah 01–04 berada di RT01/RW01, 05–08 di RT02/RW01, dan 09–10 di RT03/RW02. Nama/alamat sintetis; NIK, KK, dan nomor HP tidak diisi.
+
+Password awal bersama dan daftar akun lengkap tersedia di file lokal **`storage/app/private/community-demo-accounts.json`**, field `password`. File ini di-ignore Git dengan permission `0600`; jangan dibagikan atau di-commit. Akun demo aktif dan tidak memerlukan penggantian password pada login pertama. Akun admin bootstrap yang sudah ada tidak diubah.
+
+| Akun | Akses Community |
+|---|---|
+| `demo.admin@rukun.test` | Super-admin, seluruh 10 rumah / 40 warga |
+| `demo.ketua.rw01@rukun.test` | RW01, 8 rumah / 32 warga |
+| `demo.ketua.rw02@rukun.test` | RW02, 2 rumah / 8 warga |
+| `demo.ketua.rt01@rukun.test` | RT01, 4 rumah / 16 warga |
+| `demo.ketua.rt02@rukun.test` | RT02, 4 rumah / 16 warga |
+| `demo.ketua.rt03@rukun.test` | RT03, 2 rumah / 8 warga |
+| `demo.sekretaris.rt01@rukun.test` sampai `demo.sekretaris.rt03@rukun.test` | Wilayah RT masing-masing |
+| `demo.sekretaris.rw01@rukun.test` | RW01 |
+| `demo.warga01@rukun.test` sampai `demo.warga10@rukun.test` | Rumah masing-masing, 4 anggota |
+| `demo.pengelola.kk08@rukun.test` | Pengelola akun rumah 08 |
+| `demo.bendahara.rt01@rukun.test`, `demo.bendahara.rw01@rukun.test` | Keuangan wilayah; Community hanya keluarga sendiri |
+| `demo.ronda@rukun.test` | Koordinator ronda RT01; Community hanya keluarga sendiri |
+| `demo.vendor@rukun.test` | Vendor WiFi, tanpa akses daftar warga |
+
+Login FE menggunakan email di atas dan password dari file lokal. Pengurus dapat memilih konteks wilayah; warga memilih konteks rumah dan membuka **Keluarga saya** untuk melihat alamat serta anggota keluarga. Respons login/me kini menyediakan `contexts` berisi scope dan capabilities untuk navigasi FE. Otorisasi dan filter data tetap diperiksa server; role wilayah tidak diberikan sebagai permission global.
+
+Seeder aman dijalankan ulang: tidak menggandakan data, tidak mereset password/alamat yang telah diubah, dan tidak mengaktifkan kembali assignment yang dicabut. Password dalam file adalah password **awal**, bukan password baru setelah pengguna menggantinya. Simpan manifest tersebut: jika hilang sementara akun demo masih ada, seeder menolak mengambil alih email yang sama. Seeder tidak dipanggil oleh `DatabaseSeeder` biasa dan tidak berjalan pada production. Dataset ini belum membuat invoice, pembayaran, atau transaksi WiFi.
+
+Verifikasi demo (30 September 2026): **170 test backend / 1246 assertions**, Pint dan validasi OpenAPI lulus; **52 unit test FE**, **2 browser test scoped** (workers=1), typecheck, build, lint dan format lulus. Jumlah development dan password awal seluruh 25 akun terverifikasi; secret scan serta diff check lulus.
