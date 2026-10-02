@@ -15,7 +15,14 @@ class RoleController
 {
     public function index(): JsonResponse
     {
-        return ApiResponse::success(Role::query()->with('permissions:id,name')->orderBy('name')->get());
+        $roles = Role::query()->with('permissions:id,name')->orderBy('name')->get()->map(function (Role $role): array {
+            $payload = $role->toArray();
+            $payload['permissions'] = $role->permissions()->pluck('name')->sort()->values()->all();
+
+            return $payload;
+        });
+
+        return ApiResponse::success($roles);
     }
 
     public function store(Request $request): JsonResponse
@@ -30,7 +37,11 @@ class RoleController
             return $role;
         });
 
-        return ApiResponse::success($role->load('permissions:id,name'), 201);
+        $role->refresh();
+        $payload = $role->toArray();
+        $payload['permissions'] = $role->permissions()->pluck('name')->sort()->values()->all();
+
+        return ApiResponse::success($payload, 201);
     }
 
     public function update(Request $request, Role $role): JsonResponse
@@ -51,7 +62,11 @@ class RoleController
             Audit::record('rbac.role_updated', $locked, ['before' => $before, 'after' => $data]);
         });
 
-        return ApiResponse::success($role->fresh()->load('permissions:id,name'));
+        $role = $role->fresh();
+        $payload = $role->toArray();
+        $payload['permissions'] = $role->permissions()->pluck('name')->sort()->values()->all();
+
+        return ApiResponse::success($payload);
     }
 
     public function destroy(Role $role): JsonResponse

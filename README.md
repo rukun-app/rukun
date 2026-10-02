@@ -18,6 +18,21 @@ Untuk staging, siapkan HTTPS, `APP_DEBUG=false`, `LOG_CHANNEL=json`, `TELESCOPE_
 
 Verifikasi baseline F0 lokal 28 September 2026: **96 test / 549 assertions**, Pint, OpenAPI (49 paths / 59 operations), secret scan, HTTPS health, MinIO private write/read/delete, job melalui worker Rukun, dan scheduler heartbeat lulus. Pengiriman email probe ke MailDev lokal berhasil dan hasilnya diperiksa melalui API MailDev. Dump/restore PostgreSQL lokal ke database sementara lulus dan database rehearsal sudah dihapus; ini belum menggantikan uji staging. Admin development `admin@rukun.test` telah dibuat; login dan `/api/auth/me` lulus melalui HTTPS, kemudian token probe dicabut. Credential bootstrap tersimpan di `storage/app/private/bootstrap-admin.json` (Git ignored, mode `0600`); akun lokal ini sudah ditandai wajib mengganti password, lalu hapus file tersebut. CI GitHub dan backup/restore staging tetap wajib sebelum production pilot, tetapi sesuai arahan pengguna tidak menghalangi development F1.
 
+## RBAC admin payload
+
+Kontrak admin RBAC sekarang menormalisasi `permissions` menjadi daftar string flat, bukan objek permission bersarang dengan `pivot` metadata. Hal ini membuat UI admin untuk roles dan users dapat langsung membaca izin yang aktif tanpa pemrosesan tambahan.
+
+Contoh payload yang dipakai oleh admin UI:
+
+```json
+{
+  "roles": ["super-admin", "user"],
+  "permissions": ["settings.view", "users.assign-roles", "audit.view"]
+}
+```
+
+Endpoint utama yang memakai kontrak ini adalah `GET /api/users`, `GET /api/users/{id}`, `GET /api/roles`, dan `PATCH /api/roles/{id}`.
+
 ## Daftar isi
 
 - [Status implementasi](#status-implementasi)

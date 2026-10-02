@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Modules\Community\Models\RoleAssignment;
 use Spatie\Permission\Models\Role;
 
 class UserAccessController
@@ -24,27 +25,30 @@ class UserAccessController
         ]);
         $perPage = $request->integer('per_page', 20);
 
-        return ApiResponse::success(
-            User::query()
-                ->with('roles:id,name')
-                ->when($request->string('search')->isNotEmpty(), function ($query) use ($request): void {
-                    $search = '%'.$request->string('search')->trim()->toString().'%';
-                    $query->where(fn ($query) => $query->where('name', 'ilike', $search)->orWhere('email', 'ilike', $search));
-                })
-                ->when($request->string('status')->isNotEmpty(), fn ($query) => $query->where('status', $request->string('status')->toString()))
-                ->when($request->string('role')->isNotEmpty(), fn ($query) => $query->role($request->string('role')->toString()))
-                ->orderBy('name')
-                ->orderBy('id')
-                ->cursorPaginate($perPage)
-                ->withQueryString()
-        );
+        $users = User::query()
+            ->with('roles:id,name')
+            ->when($request->string('search')->isNotEmpty(), function ($query) use ($request): void {
+                $search = '%'.$request->string('search')->trim()->toString().'%';
+                $query->where(fn ($query) => $query->where('name', 'ilike', $search)->orWhere('email', 'ilike', $search));
+            })
+            ->when($request->string('status')->isNotEmpty(), fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->string('role')->isNotEmpty(), fn ($query) => $query->role($request->string('role')->toString()))
+            ->orderBy('name')
+            ->orderBy('id')
+            ->cursorPaginate($perPage)
+            ->withQueryString();
+
+        $users->getCollection()->transform(function (User $user): array {
+            return $this->enrichUserPayload($user);
+        });
+
+        return ApiResponse::success($users);
     }
 
     public function show(User $user): JsonResponse
     {
         return ApiResponse::success([
-            ...$user->load('roles:id,name')->toArray(),
-            'permissions' => $user->getAllPermissions()->pluck('name')->sort()->values(),
+            ...$this->enrichUserPayload($user),
             'active_tokens' => $user->tokens()->count(),
         ]);
     }
@@ -117,6 +121,37 @@ class UserAccessController
         });
 
         return ApiResponse::success(['roles' => $user->getRoleNames()->values()]);
+    }
+
+    private function enrichUserPayload(User $user): array
+    {
+        $user->loadMissing('roles:id,name');
+        $accessRoles = $user->roles->map(fn ($role) => ['id' => $role->id, 'name' => $role->name])->values()->all();
+        $communityRoles = RoleAssignment::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where('starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->get();
+
+        $communityRoleNames = $communityRoles->isNotEmpty()
+            ? Role::query()->whereIn('id', $communityRoles->pluck('role_id')->unique()->all())->get(['id', 'name'])->map(fn ($role) => ['id' => $role->id, 'name' => $role->name])->values()->all()
+            : [];
+
+        $roleNames = array_values(array_unique(array_merge($accessRoles, $communityRoleNames), SORT_REGULAR));
+
+        $permissions = $user->getAllPermissions()->pluck('name')->all();
+        if ($communityRoles->isNotEmpty()) {
+            $communityPermissions = Role::query()->whereIn('id', $communityRoles->pluck('role_id')->unique()->all())->with('permissions:id,name')->get()->flatMap(fn ($role) => $role->permissions->pluck('name')->all())->all();
+            $permissions = array_values(array_unique(array_merge($permissions, $communityPermissions)));
+        }
+
+        $payload = $user->toArray();
+        $payload['roles'] = $roleNames;
+        $payload['permissions'] = array_values(array_unique(array_filter($permissions, fn ($permission) => is_string($permission)))) ;
+        sort($payload['permissions']);
+
+        return $payload;
     }
 
     private function isLastAccessManager(User $user): bool

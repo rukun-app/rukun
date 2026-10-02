@@ -4,6 +4,9 @@ use App\Models\User;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Modules\Community\Models\Area;
+use Modules\Community\Models\RoleAssignment;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
@@ -50,6 +53,22 @@ it('uses cursor pagination for user collections', function () {
 
     $this->getJson('/api/users?per_page=5&cursor='.urlencode($cursor))->assertOk()
         ->assertJsonCount(5, 'data.data');
+});
+
+it('exposes normalized role and permission data for admin screens', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('super-admin');
+    Sanctum::actingAs($admin);
+
+    $this->postJson('/api/roles', ['name' => 'editor', 'permissions' => ['settings.view']])->assertCreated();
+
+    $this->getJson('/api/roles')->assertOk()
+        ->assertJsonPath('data.0.name', 'admin')
+        ->assertJsonFragment(['settings.view']);
+
+    $this->getJson('/api/users')->assertOk()
+        ->assertJsonPath('data.data.0.roles.0.name', 'super-admin')
+        ->assertJsonFragment(['settings.view']);
 });
 
 it('creates, filters, and shows managed users', function () {
@@ -109,6 +128,48 @@ it('protects the last access manager from losing management access', function ()
         ->assertUnprocessable();
 
     expect($admin->fresh()->hasRole('super-admin'))->toBeTrue();
+});
+
+it('includes community role and permission data for every user row', function () {
+    $admin = new User([
+        'name' => 'Community Admin',
+        'email' => 'community-admin-'.fake()->uuid().'@example.test',
+        'password' => bcrypt('secret-secret'),
+        'email_verified_at' => now(),
+        'status' => 'active',
+    ]);
+    $admin->setConnection('core');
+    $admin->save();
+    $admin->assignRole('super-admin');
+    $target = new User([
+        'name' => 'Community User',
+        'email' => 'community-user-'.fake()->uuid().'@example.test',
+        'password' => bcrypt('secret-secret'),
+        'email_verified_at' => now(),
+        'status' => 'active',
+    ]);
+    $target->setConnection('core');
+    $target->save();
+    $area = Area::factory()->rt()->create();
+    Permission::findOrCreate('areas.view', 'web');
+    Permission::findOrCreate('residents.manage', 'web');
+    $role = Role::findOrCreate('ketua-rt', 'web');
+    $role->givePermissionTo(['areas.view', 'residents.manage']);
+    RoleAssignment::query()->create([
+        'user_id' => $target->id,
+        'role_id' => $role->id,
+        'scope_type' => 'rt',
+        'area_id' => $area->id,
+        'starts_at' => now()->subDay(),
+        'assigned_by' => $admin->id,
+        'status' => 'active',
+    ]);
+    Sanctum::actingAs($admin);
+
+    $this->getJson('/api/users')->assertOk()
+        ->assertJsonFragment(['ketua-rt'])
+        ->assertJsonFragment(['residents.manage'])
+        ->assertJsonFragment(['areas.view']);
 });
 
 it('allows authorized users to filter audit events', function () {
