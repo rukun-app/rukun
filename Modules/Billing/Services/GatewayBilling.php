@@ -48,7 +48,8 @@ class GatewayBilling
             $amount = $invoice->amount - $this->report->paid($invoice);
             abort_if($amount <= 0, 409, __('billing::messages.overpay'));
             $payment = $this->payments->prepare($actor, 'billing.gateway', $invoice->public_id, $amount, connection: 'rukun');
-            $checkout = GatewayCheckout::query()->create(['invoice_id' => $invoice->id, 'area_id' => $area->id, 'household_id' => $invoice->household_id, 'actor_id' => $actor->id, 'payment_id' => $payment->id, 'request_key' => $key, 'amount' => $amount, 'expires_at' => now()->addMinutes(15)]);
+            $payment->update(['expires_at' => now()->addMinutes(15)]);
+            $checkout = GatewayCheckout::query()->create(['invoice_id' => $invoice->id, 'area_id' => $area->id, 'household_id' => $invoice->household_id, 'actor_id' => $actor->id, 'payment_id' => $payment->id, 'request_key' => $key, 'amount' => $amount, 'expires_at' => $payment->expires_at]);
             CommunityAudit::record('gateway.checkout_reserved', $checkout, actorId: $actor->id);
 
             return $checkout;
@@ -144,6 +145,8 @@ class GatewayBilling
         return DB::connection('rukun')->transaction(function () use ($actor, $checkout, $key, $data): GatewaySettlement {
             $area = Area::query()->findOrFail($checkout->area_id);
             $this->lock($area);
+            DB::connection('rukun')->table(config('database.connections.core.prefix').'users')->where('id', $actor->id)->lockForUpdate()->firstOrFail();
+            $actor->refresh();
             $this->scope->area($actor, 'payments.gateway.reconcile', $area);
             $checkout->refresh();
             $existing = GatewaySettlement::query()->where('checkout_id', $checkout->id)->first();
@@ -154,12 +157,14 @@ class GatewayBilling
             }
             abort_if(GatewaySettlement::query()->where('actor_id', $actor->id)->where('request_key', $key)->exists(), 409);
             abort_unless($checkout->status === 'completed' && $checkout->receipt_id && ! $checkout->review_reason, 409);
+            $corePayment = DB::connection('rukun')->table(config('database.connections.core.prefix').'payments')->where('id', $checkout->payment_id)->lockForUpdate()->firstOrFail();
+            abort_unless($corePayment->status === PaymentStatus::Paid->value, 409);
             $receipt = Receipt::query()->findOrFail($checkout->receipt_id);
             abort_if($data['fee'] > $checkout->amount || $data['settled_on'] < $receipt->paid_on->toDateString(), 422);
             $this->assertOpen($area, $data['settled_on']);
             $settlement = GatewaySettlement::query()->create(['checkout_id' => $checkout->id, 'gross' => $checkout->amount, 'fee' => $data['fee'], 'net' => $checkout->amount - $data['fee'], 'settled_on' => $data['settled_on'], 'statement_reference' => $data['statement_reference'], 'actor_id' => $actor->id, 'request_key' => $key]);
             if ($data['fee'] > 0) {
-                LedgerEntry::query()->create(['area_id' => $area->id, 'posted_on' => $data['settled_on'], 'kind' => 'expense', 'amount' => -$data['fee'], 'fund_classification' => 'operational', 'channel' => 'bank', 'reason' => 'Gateway fee '.$settlement->public_id, 'created_by' => $actor->id]);
+                LedgerEntry::query()->create(['area_id' => $area->id, 'posted_on' => $data['settled_on'], 'kind' => 'expense', 'amount' => -$data['fee'], 'fund_classification' => 'operational', 'channel' => 'bank', 'reason' => 'Gateway fee '.$settlement->public_id, 'gateway_settlement_id' => $settlement->id, 'created_by' => $actor->id]);
             }
             CommunityAudit::record('gateway.settlement_recorded', $settlement, ['checkout_id' => $checkout->public_id], $actor->id);
 

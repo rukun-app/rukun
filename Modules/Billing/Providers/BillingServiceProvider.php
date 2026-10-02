@@ -3,14 +3,18 @@
 namespace Modules\Billing\Providers;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Modules\Billing\Console\InvoiceDueSoonCommand;
 use Modules\Billing\Models\Expense;
 use Modules\Billing\Models\PaymentSubmission;
+use Modules\Billing\Services\GatewayBilling;
 use Modules\Community\Models\Area;
 use Modules\Community\Services\ScopeResolver;
 use Modules\Files\Models\StoredFile;
+use Modules\Payments\Events\PaymentStatusChanged;
+use Throwable;
 
 class BillingServiceProvider extends ServiceProvider
 {
@@ -21,11 +25,11 @@ class BillingServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([InvoiceDueSoonCommand::class]);
         }
-        \Illuminate\Support\Facades\Event::listen(\Modules\Payments\Events\PaymentStatusChanged::class, function ($event): void {
+        Event::listen(PaymentStatusChanged::class, function (PaymentStatusChanged $event): void {
             if ($event->payment->reference_type === 'billing.gateway') {
                 try {
-                    app(\Modules\Billing\Services\GatewayBilling::class)->synchronize($event->payment);
-                } catch (\Throwable $exception) {
+                    app(GatewayBilling::class)->synchronize($event->payment);
+                } catch (Throwable $exception) {
                     // The durable checkout remains available to the reconciliation scheduler.
                     report($exception);
                 }

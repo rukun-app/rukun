@@ -10,9 +10,8 @@ use Illuminate\Validation\ValidationException;
 use Modules\Billing\Models\AccountingPeriod;
 use Modules\Billing\Models\BankAccount;
 use Modules\Billing\Models\Expense;
-use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\GatewayCheckout;
-use Modules\Payments\Models\Payment;
+use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\LedgerEntry;
 use Modules\Billing\Models\PaymentSubmission;
 use Modules\Billing\Models\PaymentType;
@@ -24,6 +23,7 @@ use Modules\Community\Models\Household;
 use Modules\Community\Services\CommunityAudit;
 use Modules\Community\Services\SensitiveIdentifier;
 use Modules\Files\Models\StoredFile;
+use Modules\Payments\Models\Payment;
 use Modules\Wifi\Models\WifiPackage;
 use Modules\Wifi\Services\WifiFinancialGuard;
 
@@ -287,6 +287,7 @@ class BillingService
 
         return $this->command($actor, $area, 'ledger.adjust', 'journal.reverse', $key, ['entry' => $entry->public_id, ...$data], function () use ($actor, $entry, $area, $data): array {
             abort_unless(in_array($entry->kind, ['expense', 'adjustment', 'transfer'], true), 422);
+            abort_if($entry->gateway_settlement_id !== null, 409, __('billing::messages.gateway_reversal'));
             WifiFinancialGuard::ledger($entry->id);
             $this->open($area, $data['posted_on']);
             if ($entry->kind === 'transfer') {

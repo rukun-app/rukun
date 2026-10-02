@@ -3,6 +3,7 @@
 namespace Modules\Payments\Services;
 
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Core\Audit\Audit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -53,6 +54,11 @@ class PaymentManager
 
     public function start(Payment $payment, array $customer = []): Payment
     {
+        if ($payment->expires_at?->isPast()) {
+            $payment->newQuery()->whereKey($payment->id)->where('status', PaymentStatus::Creating->value)->update(['status' => PaymentStatus::Failed->value]);
+
+            return $payment->refresh();
+        }
         // Claim the outbound attempt before HTTP; a timeout must never create another order.
         if (! $payment->newQuery()->whereKey($payment->id)->where('status', PaymentStatus::Creating->value)->update(['status' => PaymentStatus::ProviderUnknown->value])) {
             return $payment->refresh();
@@ -138,8 +144,8 @@ class PaymentManager
                 if ($payment->reference_type === 'billing.gateway') {
                     $value = $payload['settlement_time'] ?? '';
                     try {
-                        $paidAt = \Carbon\CarbonImmutable::createFromFormat('!Y-m-d H:i:s', $value, 'Asia/Jakarta');
-                    } catch (\Throwable) {
+                        $paidAt = CarbonImmutable::createFromFormat('!Y-m-d H:i:s', $value, 'Asia/Jakarta');
+                    } catch (Throwable) {
                         throw new InvalidArgumentException('Invalid gateway settlement time.');
                     }
                     if (! $paidAt || $paidAt->format('Y-m-d H:i:s') !== $value || $paidAt->isFuture()) {

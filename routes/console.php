@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use Modules\Billing\Models\GatewayCheckout;
+use Modules\Billing\Services\GatewayBilling;
 use Modules\Wifi\Models\GallonBenefit;
 use Modules\Wifi\Services\GallonService;
 
@@ -35,11 +37,19 @@ Schedule::command('wifi:expire-benefits')->dailyAt('00:10')->withoutOverlapping(
 
 Artisan::command('billing:reconcile-gateway', function (): void {
     $failures = 0;
-    \Modules\Billing\Models\GatewayCheckout::query()->whereIn('status', ['reserved', 'review'])->chunkById(100, function ($checkouts) use (&$failures): void {
+    GatewayCheckout::query()->where(function ($query): void {
+        $query->whereIn('status', ['reserved', 'review'])->orWhere(function ($query): void {
+            $query->whereNull('review_reason')->whereExists(function ($payments): void {
+                $payments->selectRaw('1')->from(config('database.connections.core.prefix').'payments as p')->whereColumn('p.id', 'gateway_checkouts.payment_id')->whereIn('p.status', ['paid', 'refunded', 'partially_refunded', 'chargeback', 'partial_chargeback'])->where(function ($q): void {
+                    $q->where('gateway_checkouts.status', '!=', 'completed')->orWhere('p.status', '!=', 'paid');
+                });
+            });
+        });
+    })->chunkById(100, function ($checkouts) use (&$failures): void {
         foreach ($checkouts as $checkout) {
             try {
-                app(\Modules\Billing\Services\GatewayBilling::class)->reconcile($checkout);
-            } catch (\Throwable $exception) {
+                app(GatewayBilling::class)->reconcile($checkout);
+            } catch (Throwable $exception) {
                 $failures++;
                 report($exception);
             }

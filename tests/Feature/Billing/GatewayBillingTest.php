@@ -3,11 +3,13 @@
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use Modules\Billing\Models\AccountingPeriod;
 use Modules\Billing\Models\GatewayCheckout;
 use Modules\Billing\Models\GatewaySettlement;
 use Modules\Billing\Models\Invoice;
@@ -24,7 +26,7 @@ use Modules\Community\Services\PopulationService;
 use Modules\Payments\Enums\PaymentStatus;
 use Modules\Payments\Models\Payment;
 use Modules\Payments\Services\PaymentManager;
-use Modules\Settings\Settings;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 uses(DatabaseMigrations::class);
 
@@ -50,7 +52,7 @@ beforeEach(function () {
 
 function gatewayFake(array $responses): void
 {
-    Http::swap(new \Illuminate\Http\Client\Factory);
+    Http::swap(new Factory);
     Http::preventStrayRequests();
     Http::fake($responses + ['*/snap/v1/transactions' => Http::response(['token' => 'demo-checkout-token', 'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/demo'])]);
 }
@@ -191,4 +193,130 @@ it('rechecks revoked membership on idempotent replay without preventing receipt 
     $this->postJson('/api/billing/invoices/'.$this->invoice->public_id.'/checkout', [], ['Idempotency-Key' => 'checkout-key-001'])->assertForbidden();
     gatewaySettle($this, $checkout);
     expect(Receipt::query()->count())->toBe(1);
+});
+
+it('serializes concurrent checkouts into one reservation and one provider order', function () {
+    if (! function_exists('pcntl_fork')) {
+        $this->markTestSkipped('Requires pcntl in dev-php85.');
+    }
+    $actorId = $this->citizen->id;
+    $invoiceId = $this->invoice->id;
+    DB::disconnect('core');
+    DB::disconnect('rukun');
+    $children = [];
+    foreach ([1, 2] as $number) {
+        $pid = pcntl_fork();
+        if ($pid === -1) {
+            throw new RuntimeException('Unable to fork checkout test.');
+        }
+        if ($pid === 0) {
+            DB::purge('core');
+            DB::purge('rukun');
+            try {
+                app(GatewayBilling::class)->checkout(User::query()->findOrFail($actorId), Invoice::query()->findOrFail($invoiceId), 'concurrent-checkout-'.$number);
+                exit(0);
+            } catch (HttpException $exception) {
+                exit($exception->getStatusCode() === 409 ? 10 : 20);
+            } catch (Throwable) {
+                exit(30);
+            }
+        }
+        $children[] = $pid;
+    }
+    $codes = [];
+    foreach ($children as $pid) {
+        pcntl_waitpid($pid, $status);
+        $codes[] = pcntl_wexitstatus($status);
+    }
+    DB::purge('core');
+    DB::purge('rukun');
+    sort($codes);
+    expect($codes)->toBe([0, 10])->and(GatewayCheckout::query()->count())->toBe(1)->and(Payment::query()->count())->toBe(1)->and(GatewayBilling::reserved($this->invoice))->toBe(100000);
+});
+
+it('handles simultaneous verified callbacks without double allocation', function () {
+    if (! function_exists('pcntl_fork')) {
+        $this->markTestSkipped('Requires pcntl in dev-php85.');
+    }
+    $checkout = gatewayCheckout($this);
+    $payment = Payment::query()->findOrFail($checkout->payment_id);
+    $payload = gatewayPayload($payment);
+    gatewayFake(['*/'.$payment->provider_order_id.'/status' => Http::response($payload)]);
+    DB::disconnect('core');
+    DB::disconnect('rukun');
+    $children = [];
+    foreach ([1, 2] as $number) {
+        $pid = pcntl_fork();
+        if ($pid === -1) {
+            throw new RuntimeException('Unable to fork callback test.');
+        }
+        if ($pid === 0) {
+            DB::purge('core');
+            DB::purge('rukun');
+            try {
+                app(PaymentManager::class)->handleNotification($payload);
+                exit(0);
+            } catch (Throwable) {
+                exit(30);
+            }
+        }
+        $children[] = $pid;
+    }
+    $codes = [];
+    foreach ($children as $pid) {
+        pcntl_waitpid($pid, $status);
+        $codes[] = pcntl_wexitstatus($status);
+    }
+    DB::purge('core');
+    DB::purge('rukun');
+    expect($codes)->toBe([0, 0])->and(Receipt::query()->count())->toBe(1)->and(app(BillingReport::class)->paid($this->invoice))->toBe(100000);
+});
+
+it('retains reservations on status outages and exposes reconciliation only in finance scope', function () {
+    $checkout = gatewayCheckout($this);
+    $payment = Payment::query()->findOrFail($checkout->payment_id);
+    gatewayFake(['*/'.$payment->provider_order_id.'/status' => Http::response([], 503)]);
+    Sanctum::actingAs($this->citizen);
+    $this->postJson('/api/billing/gateway-checkouts/'.$checkout->public_id.'/reconcile', [], ['Idempotency-Key' => 'reconcile-outage'])->assertStatus(503);
+    expect(GatewayBilling::reserved($this->invoice))->toBe(100000);
+    $this->getJson('/api/billing/gateway-checkouts')->assertOk()->assertJsonCount(0, 'data.data');
+    Sanctum::actingAs($this->admin);
+    $this->getJson('/api/billing/gateway-checkouts')->assertOk()->assertJsonCount(1, 'data.data');
+});
+
+it('preserves provider refund history without silently reversing the receipt or settlement', function () {
+    $checkout = gatewayCheckout($this);
+    $payment = gatewaySettle($this, $checkout);
+    $payload = gatewayPayload($payment, 'refund');
+    gatewayFake(['*/'.$payment->provider_order_id.'/status' => Http::response($payload)]);
+    $this->postJson('/api/payments/webhooks/midtrans', $payload)->assertOk();
+    expect($checkout->fresh()->review_reason)->toBe('refunded')->and(app(BillingReport::class)->paid($this->invoice))->toBe(100000);
+    Sanctum::actingAs($this->admin);
+    $receipt = Receipt::query()->firstOrFail();
+    $this->postJson('/api/billing/receipts/'.$receipt->public_id.'/reverse', ['posted_on' => '2026-10-02', 'reason' => 'No silent refund'], ['Idempotency-Key' => 'manual-refund-key'])->assertConflict();
+    $this->postJson('/api/billing/gateway-checkouts/'.$checkout->public_id.'/settlement', ['fee' => 0, 'settled_on' => '2026-10-02', 'statement_reference' => 'refunded-order'], ['Idempotency-Key' => 'refunded-settlement'])->assertConflict();
+});
+
+it('expires an unattempted order without HTTP and rejects reuse of a key for another invoice', function () {
+    $checkout = gatewayCheckout($this);
+    $other = $this->invoice->replicate(['public_id']);
+    $other->public_id = (string) Str::uuid();
+    $other->subject = 'other-invoice';
+    $other->save();
+    Sanctum::actingAs($this->citizen);
+    $this->postJson('/api/billing/invoices/'.$other->public_id.'/checkout', [], ['Idempotency-Key' => 'checkout-key-001'])->assertConflict();
+    $this->getJson('/api/billing/invoices/'.$this->invoice->public_id)->assertOk()->assertJsonPath('data.reserved_amount', 100000)->assertJsonPath('data.payable_amount', 0);
+    $payment = Payment::query()->findOrFail($checkout->payment_id);
+    $payment->update(['status' => PaymentStatus::Creating, 'checkout_url' => null]);
+    $this->travel(20)->minutes();
+    app(GatewayBilling::class)->reconcile($checkout);
+    expect($checkout->fresh()->status)->toBe('released')->and($payment->fresh()->status)->toBe(PaymentStatus::Failed);
+    Http::assertSentCount(1);
+});
+
+it('keeps confirmed payments in review if their posting period was already closed', function () {
+    $checkout = gatewayCheckout($this);
+    AccountingPeriod::query()->create(['area_id' => $this->rt->id, 'period' => '2026-10-01', 'report' => [], 'closed_by' => $this->admin->id, 'closed_at' => now()]);
+    gatewaySettle($this, $checkout);
+    expect($checkout->fresh()->status)->toBe('review')->and($checkout->fresh()->review_reason)->toBe('closed_period')->and(Receipt::query()->count())->toBe(0)->and(GatewayBilling::reserved($this->invoice))->toBe(100000);
 });

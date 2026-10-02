@@ -6,11 +6,11 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 
 ## Implementasi Rukun
 
-Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F4 selesai untuk development lokal; F5–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
+Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F5 selesai untuk development lokal; F6–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
 
 Template `.env.example` menggunakan database `rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Database development/testing dan bucket sudah diprovisikan; health HTTPS serta uji tulis/baca object storage lulus.
 
-`.env` dan `.env.testing` lokal sudah dibuat dari template Rukun dengan credential infrastruktur bersama dari `../core-r`. Keduanya diabaikan Git dan memiliki permission `0600`; APP_KEY development/testing serta credential Reverb dibuat baru. Credential Midtrans tidak disalin dan integrasinya tetap nonaktif. Database `rukun` / `rukun_test`, PHPUnit, CI, dan `AGENTS.md` sudah diselaraskan. Jalankan Composer/Artisan/Pest/Pint di `dev-php85` dengan working directory `/var/www/p85/rukun`; jangan memakai database Core R untuk test Rukun. Redis testing tetap 13–15 dengan prefix khusus `rukun-test:`. Credential hanya disimpan dalam environment lokal yang diabaikan Git.
+`.env` dan `.env.testing` lokal sudah dibuat dari template Rukun dengan credential infrastruktur bersama dari `../core-r`. Keduanya diabaikan Git dan memiliki permission `0600`; APP_KEY development/testing serta credential Reverb dibuat baru. Midtrans nonaktif pada F0, lalu dikonfigurasi sandbox pada F3 dan dihubungkan ke invoice pada F5. Database `rukun` / `rukun_test`, PHPUnit, CI, dan `AGENTS.md` sudah diselaraskan. Jalankan Composer/Artisan/Pest/Pint di `dev-php85` dengan working directory `/var/www/p85/rukun`; jangan memakai database Core R untuk test Rukun. Redis testing tetap 13–15 dengan prefix khusus `rukun-test:`. Credential hanya disimpan dalam environment lokal yang diabaikan Git.
 
 Remote existing: `origin` adalah `git@github.com:rukun-app/rukun.git`; `upstream` adalah `git@github.com:RezaRiyaldi/core-r.git` dengan push dinonaktifkan. Pembaruan foundation dilakukan pada branch khusus melalui `git fetch upstream` dan `git merge upstream/main`, kemudian review migration/config/conflict dan jalankan seluruh quality gate sebelum merge ke branch utama.
 
@@ -90,7 +90,7 @@ Endpoint utama yang memakai kontrak ini adalah `GET /api/users`, `GET /api/users
 | Rukun F2 | Selesai lokal | Household, Resident, membership, scope HOUSEHOLD/VENDOR, sensitive identifiers, dan import/export CSV/XLSX |
 | Rukun F3 | Selesai lokal | Tariff snapshot, invoice, cash receipt, transfer manual, allocation, ledger, expense, reversal, dan tutup buku |
 
-Verifikasi terakhir setelah F4 (30 September 2026): **166 test lulus dengan 1173 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**126 paths / 155 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder settlement dan galon diterapkan di development; worker restart, scheduler expiry terdaftar, dan HTTPS health database/Redis/storage sehat. Rekonsiliasi sintetis mencakup remittance/advance/recovery, reversal dan ledger galon, termasuk konkurensi invoice, setoran, serta reservasi kuota. Quick Tunnel diperbarui setelah endpoint lama tidak berlaku; signed sandbox webhook pada URL pengganti lulus, tanpa membuat transaksi gateway nyata. Sign-off kebijakan dan data pilot nyata masih pending; F5 belum dimulai.
+Verifikasi F4 (30 September 2026, historis): **166 test lulus dengan 1173 assertions**, Laravel Pint lulus, OpenAPI tervalidasi (**126 paths / 155 operations**), secret scan dan diff check lulus pada PHP 8.5. Migration/seeder settlement dan galon diterapkan di development; worker restart, scheduler expiry terdaftar, dan HTTPS health database/Redis/storage sehat. Rekonsiliasi sintetis mencakup remittance/advance/recovery, reversal dan ledger galon, termasuk konkurensi invoice, setoran, serta reservasi kuota. Quick Tunnel diperbarui setelah endpoint lama tidak berlaku; signed sandbox webhook pada URL pengganti lulus, tanpa membuat transaksi gateway nyata. Sign-off kebijakan dan data pilot nyata masih pending; F5 belum dimulai.
 
 ## Memulai proyek baru
 
@@ -470,7 +470,7 @@ scripts/tunnel/webhook.sh renew  # hanya jika Quick Tunnel lama tidak berlaku
 
 `start` memasang `scripts/tunnel/nginx.conf` ke `/etc/nginx/conf.d/rukun-webhook-tunnel.conf` pada Nginx bersama, memvalidasi dan me-reload Nginx, lalu menjalankan `compose.tunnel.yml`. Listener `18085` hanya digunakan melalui jaringan Docker; tidak ada port host baru. Jika URL belum tersedia, ulangi perintah `url` setelah beberapa detik. `stop` menghentikan connector Rukun; layanan bersama dan connector Core R tetap berjalan. `url` membaca log sejak container mulai agar URL tetap ditemukan setelah layanan berjalan lama. Bila Cloudflare melaporkan `Tunnel not found`, jalankan `renew`, ambil URL baru, lalu perbarui dashboard sandbox. Quick Tunnel lama pernah tidak berlaku lagi pada 30 September 2026; ini berbeda dari health backend lokal.
 
-Salin hasil perintah `url` ke **Payment Notification URL di dashboard Midtrans sandbox**. `APP_URL` tetap `https://rukun.p85.test:8443`; tunnel ini tidak menyediakan halaman checkout/redirect. **Pengguna sudah memasang URL awal; Quick Tunnel itu kemudian tidak berlaku dan telah diperbarui pada 30 September 2026.** URL pengganti `https://belongs-strain-asia-outsourcing.trycloudflare.com/api/payments/webhooks/midtrans` sudah diuji signed sandbox (200), tetapi perlu dipasang ulang pada dashboard. Gunakan hasil `url` sebagai nilai terbaru. Quick Tunnel menyediakan URL sementara yang dapat berubah setelah connector dibuat ulang/restart; cek kembali `url` dan perbarui dashboard bila berubah. Untuk endpoint pilot yang stabil, gunakan named tunnel/domain tersendiri. Lihat [dokumentasi Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/).
+Salin hasil perintah `url` ke **Payment Notification URL di dashboard Midtrans sandbox**. `APP_URL` tetap `https://rukun.p85.test:8443`; tunnel ini tidak menyediakan halaman checkout/redirect. **URL aktif diperiksa 2 Oktober 2026:** `https://and-bullet-responded-recordings.trycloudflare.com/api/payments/webhooks/midtrans`. Signed sandbox probe lulus (200). Pastikan dashboard memakai URL ini jika masih menggunakan URL sebelumnya. Gunakan hasil `url` sebagai nilai terbaru. Quick Tunnel menyediakan URL sementara yang dapat berubah setelah connector dibuat ulang/restart; cek kembali `url` dan perbarui dashboard bila berubah. Untuk endpoint pilot yang stabil, gunakan named tunnel/domain tersendiri. Lihat [dokumentasi Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/).
 
 Verifikasi lokal melalui URL publik pada 29 September 2026: webhook sandbox `payment_notif_test_*` dengan signature valid menghasilkan `200`, `received=true`, `test=true`; signature tidak valid ditolak `401`; root, `.env`, dan `/api/health` menghasilkan `404`. Pengujian ini tidak membuat transaksi gateway dan tidak menggantikan pengujian adapter invoice/receipt F5. Credential tetap hanya pada `.env` ignored, tidak disalin ke compose/script tunnel.
 
@@ -943,6 +943,46 @@ Untuk pengujian checkout generik melalui Swagger, login sebagai administrator, t
 ```
 
 Respons `201` berisi `id`, status `pending`, dan `checkout_url` Midtrans. Pada modul bisnis, nominal tetap harus dihitung dari order atau invoice di server, bukan dipercaya dari input pengguna.
+
+## Pembayaran invoice melalui QRIS (F5)
+
+Selesai untuk development lokal pada **2 Oktober 2026**: 190 test / 1370 assertions, Pint, OpenAPI 131 paths / 160 operations, secret scan dan diff check lulus. Migration dan permission sudah diterapkan, scheduler reconciliation serta health HTTPS terverifikasi. Pengujian pembayaran QRIS sandbox nyata dan rekonsiliasi statement belum dilakukan.
+
+Checkout Billing memakai Core `PaymentManager` dan Midtrans Snap dengan `enabled_payments: ["other_qris"]`. Merchant sandbox harus mengaktifkan QRIS GoPay/ShopeePay sesuai [dokumentasi Other QRIS](https://docs.midtrans.com/reference/other-qris). Webhook tetap `POST /api/payments/webhooks/midtrans` melalui tunnel HTTPS yang sudah disiapkan; `scripts/tunnel/webhook.sh url` menampilkan URL aktif. Redirect browser bukan bukti pembayaran.
+
+| Endpoint | Fungsi |
+|---|---|
+| `POST /api/billing/invoices/{invoice}/checkout` | Reservasi seluruh sisa invoice dan pembuatan checkout QRIS |
+| `GET /api/billing/gateway-checkouts/{checkout}` | Status checkout, core payment, receipt, dan settlement dalam scope |
+| `GET /api/billing/gateway-checkouts?status=reserved` | Daftar rekonsiliasi pengurus keuangan, cursor pagination |
+| `POST /api/billing/gateway-checkouts/{checkout}/reconcile` | Ambil status provider dan pulihkan posting receipt |
+| `POST /api/billing/gateway-checkouts/{checkout}/settlement` | Catat fee aktual dan net berdasarkan statement provider |
+
+Semua POST memerlukan `Idempotency-Key` 8–128 karakter. Checkout menerima body kosong `{}`; `amount`, `allocations`, dan `metadata` dari client ditolak. Server memilih satu invoice `issued`, menghitung outstanding setelah pembayaran sebelumnya, lalu mereservasi seluruh sisanya. Endpoint generik `POST /api/payments` menolak reference `billing.*` agar tidak melewati validasi domain. Warga aktif dapat membayar rumahnya sendiri; pengurus membutuhkan `payments.gateway.create` pada scope yang sesuai. `payments.gateway.reconcile` untuk daftar rekonsiliasi dan pencatatan statement diberikan kepada super-admin serta bendahara RT/RW.
+
+Response checkout memuat `public_id`, `invoice_id`, `payment_id`, `amount`, `currency`, `status`, `payment_status`, `checkout_url`, `expires_at`, `paid_at`, `receipt_id`, `review_reason`, dan `settlement`. Buka `checkout_url` ketika `payment_status=pending`. Jika `provider_unknown`, URL bisa null: order dan reservasi sudah tersimpan, gunakan reconcile atau tunggu scheduler; jangan membuat order pengganti. Mengulang key yang sama mengembalikan checkout semula setelah scope diperiksa ulang. Detail invoice menampilkan `reserved_amount` dan `payable_amount`; reservation tidak dianggap sebagai pelunasan.
+
+Snap diberi expiry 15 menit sejak order dibuat, mengikuti [custom expiry Midtrans](https://docs.midtrans.com/docs/snap-advanced-feature). Jam lokal yang melewati `expires_at` tidak otomatis melepas reservasi yang sudah dikirim. Provider timeout atau 404 tetap memerlukan konfirmasi: status terminal `expire/cancel/deny/failure` yang terverifikasi melepaskan reservasi. Order berstatus `creating` yang belum pernah dicoba dan sudah kedaluwarsa dapat dilepas tanpa HTTP. Lock RW dan unique reservation mencegah checkout ganda; cash/manual approval, pembatalan invoice, dan penutupan periode memeriksa reservasi yang masih aktif.
+
+Callback Billing memverifikasi signature, lalu mengambil Get Status melalui kredensial server. Nilai status, amount, currency, order, dan settlement time diproses dari hasil provider tersebut. `settlement_time` divalidasi dan dikonversi dari WIB ke timezone aplikasi; waktu callback datang tidak menggantikan waktu bayar. Satu sukses normal menghasilkan satu receipt `channel=gateway`, allocation penuh, ledger gross, audit, dan event receipt. Unique payment/receipt serta transaksi posting menjaga redelivery tetap idempotent. Receipt tetap dapat diposting setelah warga pindah atau aksesnya dicabut; perubahan akses tidak menghilangkan pembayaran yang sudah diterima.
+
+```sh
+docker exec -w /var/www/p85/rukun dev-php85 php artisan billing:reconcile-gateway
+```
+
+Scheduler menjalankannya setiap menit untuk memulihkan receipt setelah callback terputus dan memeriksa status reservasi. Jika proses gagal setelah order tersimpan tetapi sebelum HTTP, order yang sama dapat diteruskan. Jika hasil HTTP tidak pasti, sistem hanya mengambil status, tidak mengirim charge baru. Checkout dalam `review` atau `review_reason` terisi harus diperiksa pengurus: late success setelah release, periode tertutup, metode selain QRIS, refund/chargeback, dan konflik alokasi tidak memaksa overpayment atau mengubah history final. Refund provider dan koreksi statement otomatis belum termasuk MVP; reversal manual receipt gateway/fee ditolak.
+
+Fee tidak diambil dari asumsi tarif MDR dan tidak dibebankan ke warga. Setelah sukses, bendahara mencatat settlement dari statement aktual:
+
+```json
+{
+  "fee": 700,
+  "settled_on": "2026-10-02",
+  "statement_reference": "statement-sandbox-001"
+}
+```
+
+Untuk gross Rp100.000, data rekonsiliasi menjadi `gross=100000`, `fee=700`, `net=99300`. Receipt dan pelunasan tetap Rp100.000. Fee menghasilkan ledger expense bank **operational**, sehingga dana `pass_through` WiFi tetap utuh. Settlement append-only dan satu per checkout; replay identik menggunakan key semula. `settlement=null` berarti statement belum direkonsiliasi, bukan fee nol. Pembayaran/statement sandbox nyata dan sign-off keuangan tetap harus diverifikasi sebelum production pilot.
 
 ## Module system
 

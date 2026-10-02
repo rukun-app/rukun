@@ -30,14 +30,16 @@ return new class extends Migration
             settled_on date NOT NULL, statement_reference varchar(200) NOT NULL, actor_id bigint NOT NULL REFERENCES {$users}(id),
             request_key varchar(128) NOT NULL, created_at timestamp NOT NULL, updated_at timestamp NOT NULL, UNIQUE(actor_id,request_key)
         )");
+        $db->statement('ALTER TABLE ledger_entries ADD COLUMN gateway_settlement_id bigint UNIQUE REFERENCES gateway_settlements(id)');
         $db->statement('CREATE TRIGGER gateway_settlements_immutable BEFORE UPDATE OR DELETE ON gateway_settlements FOR EACH ROW EXECUTE FUNCTION billing_immutable_history()');
     }
 
     public function down(): void
     {
         $db = DB::connection('rukun');
+        $db->statement('ALTER TABLE ledger_entries DROP COLUMN gateway_settlement_id');
         $db->statement('DROP TABLE gateway_settlements, gateway_checkouts');
         $db->statement('ALTER TABLE receipts DROP COLUMN gateway_payment_id, DROP COLUMN paid_at');
-        $db->statement("ALTER TABLE receipts DROP CONSTRAINT receipts_channel_check, ADD CONSTRAINT receipts_channel_check CHECK(channel IN ('cash','manual'))");
+        // Preserve the gateway channel for immutable historical receipts on rollback.
     }
 };

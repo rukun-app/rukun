@@ -11,7 +11,7 @@
 
 ## Status Implementasi
 
-> **Status per 30 September 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4 selesai untuk development lokal termasuk settlement/remittance, advance/recovery dan galon; rekonsiliasi pilot WiFi nyata belum dilakukan; F5–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
+> **Status per 2 Oktober 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4 selesai untuk development lokal termasuk settlement/remittance, advance/recovery dan galon; rekonsiliasi pilot WiFi nyata belum dilakukan; F5 selesai untuk development lokal; uji pembayaran QRIS sandbox nyata dan rekonsiliasi statement masih pending; F6–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
 
 | Fase | Nama | Status |
 |---|---|---|
@@ -20,7 +20,7 @@
 | F2 | Household, Resident & Scoped Authorization | Selesai lokal; dataset pilot nyata belum direkonsiliasi |
 | F3 | Billing, Manual Payments & Cashbook | Selesai lokal; buku kas pilot nyata belum direkonsiliasi |
 | F4 | WiFi Collective & Gallon Benefit | Selesai lokal; sign-off kebijakan dan rekonsiliasi pilot nyata pending |
-| F5 | Payment Gateway / QRIS | Belum dimulai |
+| F5 | Payment Gateway / QRIS | Selesai lokal; pembayaran sandbox nyata dan sign-off statement pending |
 | F6 | Announcements & Citizen Services | Belum dimulai |
 | F7 | Patrol & Community Activities | Belum dimulai |
 | F8 | Community Marketplace | Belum dimulai |
@@ -133,9 +133,22 @@ Keputusan F3: rupiah integer, semua POST memakai Idempotency-Key persisten, part
 - [ ] Sign-off kebijakan remittance/advance, prorata dan metode konfirmasi sebelum pilot nyata; rekonsiliasi satu periode WiFi/galon nyata.
 - [x] Pengguna mengonfirmasi Notification URL awal telah dipasang di dashboard Midtrans sandbox; adapter invoice/gateway tetap F5.
 - [x] Quick Tunnel lama melaporkan `Tunnel not found`; connector diperbarui 30 September, URL baru berhasil menerima signed sandbox test (200) dan root tetap 404. Perintah `url` diperbaiki untuk layanan berumur panjang; `renew` tersedia.
-- [ ] Pasang URL pengganti `https://belongs-strain-asia-outsourcing.trycloudflare.com/api/payments/webhooks/midtrans` pada dashboard sandbox; URL awal sudah tidak berlaku. Pengguna telah diberi URL pengganti.
+- [ ] Pasang URL pengganti `https://and-bullet-responded-recordings.trycloudflare.com/api/payments/webhooks/midtrans` pada dashboard sandbox jika masih memakai URL sebelumnya; URL aktif diverifikasi dengan signed sandbox probe 200 pada 2 Oktober 2026.
 
 Keputusan tahap 1: tagihan bulanan penuh tanpa prorata; aktivasi boleh di tengah bulan, akhir langganan eksklusif pada hari pertama bulan berikutnya. Hari due/settle configurable 1–28. Settlement memakai receipt sah sampai cutoff; pembayaran terlambat dan advance tidak menghasilkan eligibility. Default advance mati, remit day 28, quota 10, claim window 30 hari; semuanya configurable saat membuat paket. Konfirmasi galon melalui akun anggota Household aktif yang berbeda dari pembuat klaim. Remittance adalah pencatatan setoran manual, bukan transfer bank otomatis. Berikutnya F5 setelah gate lokal F4 lulus. Gate CI remote dan staging tetap sebelum production pilot.
+
+### Checklist F5
+
+- [x] Checkout satu invoice mengambil seluruh outstanding dari server, tanpa nominal atau allocation authoritative dari client.
+- [x] Reservasi dan order Core Payment disimpan sebelum HTTP; lock RW dan unique reservation mencegah checkout ganda serta konflik cash/manual approval.
+- [x] Snap dibatasi `other_qris`, expiry 15 menit dari waktu pembuatan; timeout/unknown tetap reserved sampai provider terverifikasi.
+- [x] Callback memakai verifikasi signature dan Get Status; receipt/allocation/ledger gross idempotent dengan waktu settlement provider (WIB dikonversi ke timezone aplikasi).
+- [x] Scheduler memulihkan posting receipt yang terputus; status expiry/cancel/failure terkonfirmasi melepaskan reservasi.
+- [x] Rekonsiliasi statement menyimpan gross/fee/net; fee aktual menjadi biaya operational, tidak mengurangi pelunasan warga atau pass-through vendor.
+- [x] Gate lokal: 190 Pest test / 1370 assertions, Pint, OpenAPI 131 paths / 160 operations, secret scan dan diff check lulus. Migration dan permission seeder diterapkan di development; scheduler reconcile tiap menit, worker restart, dan health HTTPS sehat.
+- [ ] Uji pembayaran QRIS sandbox end-to-end dengan transaksi provider nyata; sign-off rekonsiliasi statement sebelum production pilot.
+
+Keputusan F5: satu checkout per invoice, full outstanding, currency IDR integer. Unknown/404 provider tidak dianggap expired secara lokal. Late success setelah pelepasan, periode tutup, refund/chargeback dan anomali masuk rekonsiliasi; tidak memaksa overpayment atau reversal otomatis. Endpoint refund provider dan koreksi settlement otomatis tidak termasuk MVP. CI remote/staging tetap gate sebelum production pilot.
 
 ### Dataset demo Community dan integrasi FE (30 September 2026)
 
@@ -166,6 +179,8 @@ Keputusan tahap 1: tagihan bulanan penuh tanpa prorata; aktivasi boleh di tengah
 | 2026-10-02 | RBAC admin payload normalization | `GET /api/roles` dan `GET /api/users` dikembalikan dalam format izin yang siap dipakai UI admin: `permissions` berupa daftar nama izin flat (mis. `['settings.view', 'users.assign-roles']`), tanpa objek permission berserta `pivot` metadata. Hal ini memperbaiki bug role/permission admin yang sebelumnya memunculkan data nested dan membuat checkbox izin tidak terbaca. | FE admin dapat membangun grouped permission matrix dan tidak perlu menormalisasi payload bersarang dari backend. |
 
 | 2026-10-02 | Koreksi migration identity dan isolasi test | Menindaklanjuti `test-result.txt` (70 gagal / 102 lulus): hilangkan clone legacy pada rollback dan asumsi sequence `users_id_seq`; normalisasi memakai rename yang menjaga ID/sequence/FK, menolak dua tabel identity tanpa rekonsiliasi. RBAC memakai DatabaseMigrations untuk akses core/rukun; trait RefreshDatabase infrastruktur dipasang pada tingkat file. Tambah tiga regresi untuk database normal, legacy berisi data, dan konflik dua tabel. | Seluruh 175 test / 1271 assertions lulus (PHP 8.5, 226.51 detik), Pint, secret scan dan diff check lulus. Development diperiksa read-only: hanya rcore_users dan FK role assignment valid; tidak ada reset/mutasi data development. README diperbarui; F5 tetap belum dimulai. |
+
+| 2026-10-02 | F5 selesai lokal | Adapter invoice–PaymentManager–QRIS, durable reservation sebelum HTTP, server-side amount, scope/idempotency, verifikasi Get Status, waktu settlement provider, receipt/allocation/ledger exactly-once, release terminal status, scheduler recovery, dan statement gross/fee/net selesai. Fee operational terpisah dari dana pass-through. Refund/late success/anomali ditandai rekonsiliasi tanpa reversal otomatis. README/OpenAPI diperbarui. | 190 test / 1370 assertions termasuk checkout/callback dua proses, Pint, OpenAPI 131 paths / 160 operations, secret scan/diff check lulus. Migration/seeder development, scheduler, worker restart dan health sehat. Signed sandbox webhook URL tunnel aktif lulus 200; pembayaran QRIS provider nyata dan statement masih pending sebelum pilot. URL notification terbaru perlu diselaraskan di dashboard. Berikutnya F6. |
 
 Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate development fase aktif selesai. CI remote dan staging tetap wajib sebelum production pilot, tetapi tidak menghalangi F1 dan fase development berikutnya.
 
