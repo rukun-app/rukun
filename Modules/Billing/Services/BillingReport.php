@@ -59,6 +59,6 @@ class BillingReport
             $paid += $this->paid($invoice, $end);
         }
 
-        return ['area_id' => $area->public_id, 'period' => $period, 'currency' => 'IDR', 'funds' => $groups, 'invoice_total' => $invoiced, 'invoice_paid_at_month_end' => $paid, 'invoice_outstanding_at_month_end' => $invoiced - $paid, 'closing_balance' => array_sum(array_column($groups,'closing'))];
+        return ['area_id' => $area->public_id, 'period' => $period, 'currency' => 'IDR', 'funds' => $groups, 'invoice_total' => $invoiced, 'invoice_paid_at_month_end' => $paid, 'invoice_outstanding_at_month_end' => $invoiced - $paid, 'closing_balance' => array_sum(array_column($groups, 'closing'))];
     }
 }

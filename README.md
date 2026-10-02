@@ -22,6 +22,10 @@ Verifikasi baseline F0 lokal 28 September 2026: **96 test / 549 assertions**, Pi
 
 Kontrak admin RBAC sekarang menormalisasi `permissions` menjadi daftar string flat, bukan objek permission bersarang dengan `pivot` metadata. Hal ini membuat UI admin untuk roles dan users dapat langsung membaca izin yang aktif tanpa pemrosesan tambahan.
 
+## Flow akun warga dan role default
+
+Model domain yang benar adalah `household/KK -> resident/warga -> user account`. Pembuatan akun tidak menggantikan data rumah tangga; akun dibuat sebagai langkah berikutnya untuk warga yang memang membutuhkan login. Endpoint `POST /api/community/residents/{resident}/account` menghubungkan akun pada warga yang bersangkutan, dengan default role backend `warga` dan penguatan role RT/RW/admin dilakukan lewat assignment role yang terpisah. UI admin di ruang pengurus mengikuti azas ini agar tidak menganggap rumah tangga sebagai user yang langsung login.
+
 Contoh payload yang dipakai oleh admin UI:
 
 ```json
@@ -950,9 +954,15 @@ docker exec -w /var/www/p85/rukun dev-php85 php artisan make:module Billing
 
 Provider dan route modul dimuat melalui `Core/Providers/ModuleServiceProvider.php`. Modul baru perlu menambahkan migration, permission, audit, OpenAPI, dan Feature test sesuai kebutuhannya.
 
-Tabel boilerplate memakai connection `core`, yang mengarah ke PostgreSQL yang sama dengan prefix fisik `rcore_`. Tabel modul bisnis tanpa prefix harus memakai connection `pgsql` secara eksplisit pada migration dan model. Relasi ke user mengacu ke tabel fisik `rcore_users`. Konvensi ini menjaga tabel fondasi mudah dibedakan dari tabel domain.
+Tabel boilerplate memakai connection `core`, yang mengarah ke PostgreSQL yang sama dengan prefix fisik `rcore_`. Tabel modul bisnis tanpa prefix memakai connection `rukun` pada model dan operasi domain. Relasi ke user mengacu ke tabel fisik `rcore_users`. Konvensi ini menjaga tabel fondasi mudah dibedakan dari tabel domain.
+
+Model `User` dan schema identity memakai connection `core` secara eksplisit. Migration normalisasi hanya me-rename tabel legacy `users` menjadi `rcore_users` jika tabel tujuan belum ada; PostgreSQL mempertahankan ID, sequence, index dan foreign key. Jika hanya tabel core yang ada, migration tidak mengubah apa pun. Jika kedua tabel ada, migration berhenti untuk rekonsiliasi identitas tanpa menggabungkan atau menghapus data. Normalisasi ini bersifat forward-only: `down()` tidak membuat salinan tabel legacy, karena migration sebelumnya kini memakai tabel core.
+
+Test yang menulis lewat connection `core` dan `rukun` memakai `DatabaseMigrations`, termasuk RBAC Community. Transaksi `RefreshDatabase` pada satu connection tidak membuat data yang belum commit terlihat oleh connection lainnya; akibatnya FK dapat gagal meskipun nama tabel sudah benar. Trait `RefreshDatabase` pada test infrastruktur dideklarasikan pada tingkat file agar persiapan schema benar-benar dijalankan, bukan bergantung pada sisa database dari test lain.
 
 ## Testing
+
+Verifikasi 2 Oktober 2026 setelah koreksi normalisasi identity dan isolasi test: **175 test lulus / 1271 assertions**, Laravel Pint, secret scan dan diff check lulus. Pengujian meliputi migration fresh/rollback, preservasi akun dan FK saat rename legacy, serta penolakan konflik dua tabel identity. Data development tidak di-reset.
 
 ```sh
 docker exec -w /var/www/p85/rukun dev-php85 php artisan test

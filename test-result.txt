@@ -1,0 +1,1625 @@
+
+   PASS  Tests\Unit\ExampleTest
+  ✓ that true is true
+
+   PASS  Tests\Unit\Identity\LoginIdentifierTest
+  ✓ it normalizes equivalent identifiers consistently with (' Warga@Exa… 0.01s  
+  ✓ it normalizes equivalent identifiers consistently with ('0812-3456-7890', '+6281234567890')
+  ✓ it normalizes equivalent identifiers consistently with ('6281234567890', '+6281234567890')
+  ✓ it normalizes equivalent identifiers consistently with ('+62 (812) 3456 7890', '+6281234567890')
+
+   PASS  Tests\Unit\Modules\ModuleNameTest
+  ✓ it accepts safe module names
+
+   FAIL  Tests\Feature\Access\RbacTest
+  ✓ it denies RBAC management without permission                         1.52s  
+  ✓ it manages dynamic roles and assigns them to users                   0.25s  
+  ✓ it uses cursor pagination for user collections                       0.61s  
+  ✓ it exposes normalized role and permission data for admin screens     0.50s  
+  ✓ it creates, filters, and shows managed users                         0.43s  
+  ✓ it rejects a stale role update                                       0.41s  
+  ✓ it updates a role when the client version is current                 0.44s  
+  ✓ it protects the last access manager from losing management access    0.34s  
+  ⨯ it includes community role and permission data for every user row    0.24s  
+  ✓ it allows authorized users to filter audit events                    0.16s  
+
+   PASS  Tests\Feature\Api\ApiDocumentationTest
+  ✓ it serves Swagger UI and a valid OpenAPI document                    0.88s  
+  ✓ it can disable public API documentation                              0.02s  
+  ✓ it generates a static OpenAPI document                               1.27s  
+  ✓ it serves only approved local Swagger UI assets                      0.02s  
+  ✓ it documents a response body schema for every response before execu… 0.78s  
+  ✓ it documents idempotency and named rate limit contracts              0.77s  
+  ✓ it documents population scope, sensitive fields and transfer contra… 0.77s  
+  ✓ it documents integer rupiah and idempotency for the billing lifecyc… 0.78s  
+
+   PASS  Tests\Feature\Api\ApiResponseTest
+  ✓ it uses a consistent success response                                0.02s  
+  ✓ it uses a consistent error response                                  0.02s  
+  ✓ it returns a clear unauthenticated API response                      0.02s  
+
+   PASS  Tests\Feature\Api\HealthCheckTest
+  ✓ it reports required services as healthy                              0.04s  
+  ✓ it reports a failed required service                                 0.02s  
+  ✓ it does not fail when optional storage is down                       0.05s  
+
+   PASS  Tests\Feature\Api\LocalizationTest
+  ✓ it publishes supported locales and language headers                  0.18s  
+  ✓ it localizes standard errors and keeps a stable machine code         0.16s  
+  ✓ it localizes validation errors and falls back from unsupported lang… 0.14s  
+  ✓ it uses the user preference and allows a request override            0.21s  
+  ✓ it updates and returns the locale in the user profile                0.43s  
+  ✓ it keeps core API translation keys in parity                         0.19s  
+
+   PASS  Tests\Feature\ApiReliabilityTest
+  ✓ it replays a successful idempotent user creation without duplicate…  0.20s  
+  ✓ it rejects idempotency key reuse with a different fingerprint        0.17s  
+  ✓ it rejects a concurrent request while the idempotency key is locked  1.93s  
+  ✓ it replays an identical file upload without storing a duplicate      0.17s  
+  ✓ it uses a named Redis rate limiter and returns retry headers         0.15s  
+
+   FAIL  Tests\Feature\Billing\BillingTest
+  ⨯ it generates invoices idempotently and preserves tariff snapshots a… 2.54s  
+  ⨯ it supports partial cash payments and prevents overpay and duplicat… 2.60s  
+  ⨯ it prioritizes current must-settle invoices then oldest arrears and… 2.84s  
+  ⨯ it validates explicit allocations against amount ownership and outs… 1.96s  
+  ⨯ it keeps submissions pending without affecting invoices until scope… 1.92s  
+  ⨯ it preserves rejected submissions and rejects changed amounts and s… 2.30s  
+  ⨯ it rolls back approval when outstanding changed after submission     2.64s  
+  ⨯ it reverses receipts with immutable ledger history and restored inv… 2.11s  
+  ⨯ it freezes reports and rejects backdating while current receipts ca… 2.55s  
+  ⨯ it reconciles a synthetic month against manual cash and pass-throug… 2.63s  
+  ⨯ it limits households and officers by scope including revoked idempo… 1.95s  
+  ⨯ it handles invoice draft issue cancellation and deduplicated due-so… 2.66s  
+  ⨯ it reverses both legs of a transfer and refuses a second reversal    2.03s  
+  ⨯ it serializes simultaneous receipts so only one can consume the rem… 2.16s  
+
+   FAIL  Tests\Feature\Community\CommunityDemoSeederTest
+  ⨯ it creates repeatable demo data and preserves edited records and ac… 3.24s  
+  ⨯ it supports login and scopes the actual community endpoints for eac… 2.54s  
+  ⨯ it removes revoked, future and expired assignments from profile con… 2.17s  
+  ⨯ it refuses demo data outside development and does not populate the…  2.89s  
+
+   FAIL  Tests\Feature\Community\PhaseOneTest
+  ⨯ it logs in with equivalent Indonesian phone formats and an email id… 3.09s  
+  ⨯ it shares the failed-login limiter across equivalent phone identifi… 1.98s  
+  ⨯ it requires a real password change before any authenticated applica… 1.85s  
+  ⨯ it provisions an account idempotently without persisting plaintext…  1.73s  
+  ⨯ it rejects cross RT provisioning and equivalent duplicate email or…  1.51s  
+  ⨯ it expires private credential output and rejects other actors and r… 1.75s  
+  ⨯ it recovers only managed accounts in scope and revokes existing tok… 1.87s  
+  ⨯ it grants RW inheritance without RT leakage and respects expired as… 1.69s  
+  ⨯ it supports temporal multi-role grants and forbids scoped operators… 1.68s  
+  ⨯ it protects area mutations and keeps business tables unprefixed      1.64s  
+  ⨯ it revokes tokens and clears first-login restrictions after email p… 1.46s  
+  ⨯ it generates different initial credentials and rolls back if output… 1.77s  
+  ⨯ it does not activate future assignments or allow expired scope to r… 1.71s  
+  ⨯ it requires an explicit recovery permission rather than area member… 1.66s  
+  ⨯ it enforces hierarchy and login identifier invariants at the databa… 1.78s  
+  ⨯ it paginates public area resources without losing the cursor key     2.72s  
+
+   FAIL  Tests\Feature\Community\PopulationTest
+  ⨯ it creates households and multiple residents without creating login… 4.34s  
+  ⨯ it encrypts identifiers, hides them by default and audits explicit…  2.78s  
+  ⨯ it links and provisions separate accounts for members and prevents…  1.80s  
+  ⨯ it requires explicit household recovery capability and revokes it w… 2.82s  
+  ⨯ it limits temporal vendor assignments to the assigned vendor withou… 1.83s  
+  ⨯ it imports rows atomically, reports errors and retries without dupl… 3.64s  
+  ⨯ it exports only the selected RT and denies output downloads after s… 1.99s  
+  ⨯ it rejects import payload changes and sensitive columns without cha… 1.79s  
+  ⨯ it processes XLSX and reconciles pilot household membership and acc… 2.48s  
+  ⨯ it rechecks queued transfer authorization and rejects forged handle… 1.82s  
+  ⨯ it combines RW inheritance with temporal multiple assignments and p… 1.73s  
+  ⨯ it retains independent office roles when closing an already detache… 2.38s  
+  ⨯ it enforces one active membership per resident in PostgreSQL         2.14s  
+
+   PASS  Tests\Feature\DataTransfer\DataTransferTest
+  ✓ it exports a registered data type asynchronously to a private CSV f… 0.33s  
+  ✓ it imports valid rows and reports invalid CSV rows without failing…  0.31s  
+  ✓ it exports and imports XLSX files using streaming readers and write… 0.64s  
+  ✓ it lists handler metadata and protects transfer ownership and cance… 0.29s  
+  ✓ it requires permission and an idempotency key to start data transfe… 0.17s  
+  ✓ it prunes expired transfers and their generated export files         0.18s  
+
+   PASS  Tests\Feature\ExampleTest
+  ✓ the application returns a successful response                        0.02s  
+
+   PASS  Tests\Feature\Files\FileManagementTest
+  ✓ it uploads a private file without exposing storage internals         0.20s  
+  ✓ it validates upload size and server detected mime type               0.17s  
+  ✓ it lists only owned files with cursor pagination and filters         0.11s  
+  ✓ it hides files from other users and allows explicitly authorized ad… 0.23s  
+  ✓ it updates metadata and downloads stored content                     0.30s  
+  ✓ it soft deletes and queues idempotent physical cleanup               0.30s  
+  ✓ it removes the stored object when database persistence fails         0.21s  
+  ✓ it rejects deletion while a file is attached                         0.14s  
+
+   PASS  Tests\Feature\Identity\AuthTest
+  ✓ it issues a bearer token to a verified active user                   0.17s  
+  ✓ it rejects invalid credentials, suspended users, and unverified use… 0.21s  
+  ✓ it returns the current profile and revokes all tokens                0.24s  
+  ✓ it lists and revokes only tokens owned by the current user           0.26s  
+  ✓ it updates the basic profile and changes password                    0.42s  
+  ✓ it keeps registration disabled by default and allows it through set… 0.36s  
+  ✓ it verifies email using a signed URL                                 0.20s  
+  ✓ it resets a password and revokes existing tokens                     0.13s  
+
+   FAIL  Tests\Feature\Identity\BootstrapAdminCommandTest
+  ⨯ it creates a verified super administrator                            0.13s  
+
+   PASS  Tests\Feature\InfrastructureTest
+  ✓ it uses the isolated PostgreSQL test database                        0.05s  
+  ✓ it creates boilerplate tables with the core prefix                   0.05s  
+  ✓ it stores cache values in the isolated Redis database                0.02s  
+  ✓ it dispatches a job                                                  0.02s  
+  ✓ it processes a job with the Redis queue                              0.04s  
+  ✓ it registers and executes the scheduler command                      0.03s  
+
+   PASS  Tests\Feature\Modules\ModuleTest
+  ✓ it loads the example module provider                                 0.02s  
+  ✓ it creates a module structure                                        0.02s  
+
+   PASS  Tests\Feature\Notifications\NotificationTest
+  ✓ it provides an isolated localized notification inbox                 0.12s  
+  ✓ it manages read state count and deletion only for the owner          0.16s  
+  ✓ it returns effective preferences and protects required security cha… 0.12s  
+  ✓ it selects delivery channels from user preferences and category def… 0.10s  
+
+   PASS  Tests\Feature\OperationalReliabilityTest
+  ✓ it returns a valid request id and echoes a valid client id           0.04s  
+  ✓ it propagates correlation to queue payload audit and notification d… 0.03s  
+  ✓ it redacts nested sensitive logging context                          0.03s  
+  ✓ it enables sensitive context redaction on human readable and struct… 0.04s  
+  ✓ it provides safe failed job summary and scheduled pruning            0.06s  
+
+   PASS  Tests\Feature\Payments\PaymentFoundationTest
+  ✓ it creates a generic Midtrans checkout through the payment manager   0.15s  
+  ✓ it renders localized public payment redirect pages without trusting… 0.11s  
+  ✓ it creates an idempotent checkout through the authorized API endpoi… 0.14s  
+  ✓ it requires an idempotency key when creating a payment checkout      0.12s  
+  ✓ it rejects a successful HTTP response when the provider transaction… 0.11s  
+  ✓ it verifies and processes duplicate Midtrans notifications idempote… 0.33s  
+  ✓ it acknowledges only signed Midtrans dashboard test notifications i… 0.14s  
+  ✓ it does not downgrade a paid payment when a stale pending notificat… 0.12s  
+  ✓ it rejects forged notifications and amount mismatches                0.12s  
+  ✓ it exposes payment state only to its owner or authorized administra… 0.13s  
+
+   PASS  Tests\Feature\Realtime\EventPollingTest
+  ✓ it polls only owned events in order and advances an opaque cursor    0.07s  
+  ✓ it filters event types without exposing another user events          0.05s  
+  ✓ it rejects invalid and expired cursors with stable API errors        0.05s  
+  ✓ it returns the current boundary cursor and requires authentication   0.04s  
+  ✓ it authorizes only the matching private user channel                 0.04s  
+  ✓ it prunes only expired durable events                                0.04s  
+
+   PASS  Tests\Feature\Settings\SettingsTest
+  ✓ it exposes only public settings anonymously                          0.13s  
+  ✓ it validates, stores, caches, and audits setting changes             0.23s  
+  ✓ it exposes settings metadata to authorized users                     0.16s  
+  ✓ it resolves database then environment then code defaults and expose… 0.13s  
+  ✓ it resets a database override through the API                        0.22s  
+  ✓ it rejects unsupported file upload mime settings                     0.18s  
+
+   FAIL  Tests\Feature\Wifi\SettlementBenefitTest
+  ⨯ it reconciles remittance, advance and recovery with source receipts… 2.49s  
+  ⨯ it reverses recovery before remittance and protects linked cashbook… 2.42s  
+  ⨯ it requires cutoff closure and obeys the disabled advance policy     2.54s  
+  ⨯ it reserves and records deliveries but consumes quota finally only…  2.11s  
+  ⨯ it preserves reversal history and releases receipt reversal only af… 2.02s  
+  ⨯ it expires unconfirmed deliveries without final consumption and kee… 2.12s  
+  ⨯ it isolates finance and benefit data across vendors and households   2.29s  
+  ⨯ it serializes concurrent reservations and cannot consume more than…  2.92s  
+  ⨯ it denies self confirmation even when the vendor is also a househol… 2.09s  
+  ⨯ it rejects late payment benefits and excludes reversed timely recei… 2.13s  
+  ⨯ it serializes concurrent remittances so a vendor cannot be paid twi… 2.17s  
+  ⨯ it requires manager authority to replay reversal of a confirmed cla… 2.10s  
+
+   FAIL  Tests\Feature\Wifi\WifiTest
+  ⨯ it issues one tariff-snapshot invoice per subscription month and su… 2.63s  
+  ⨯ it replays writes and rejects missing keys, overlapping subscriptio… 1.69s  
+  ⨯ it restricts vendors to their customers and rejects vendor billing…  1.94s  
+  ⨯ it limits residents to their own household and treasurers to their…  1.78s  
+  ⨯ it honors activation, termination, period close and account scope r… 1.81s  
+  ⨯ it does not leave a bill or idempotency result after missing tariff… 2.11s  
+  ⨯ it blocks new billing in closed periods and keeps issued bill links… 1.84s  
+  ⨯ it hides inactive vendors and disallows new invoices or subscriptio… 1.96s  
+  ⨯ it serializes simultaneous generation into one invoice and one immu… 2.01s  
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Access\RbacTest > it includes commu…  QueryException   
+  SQLSTATE[23503]: Foreign key violation: 7 ERROR:  insert or update on table "role_assignments" violates foreign key constraint "role_assignments_user_id_fkey"
+DETAIL:  Key (user_id)=(27) is not present in table "rcore_users". (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: insert into "role_assignments" ("user_id", "role_id", "scope_type", "area_id", "starts_at", "assigned_by", "status", "public_id", "updated_at", "created_at") values (27, 32, rt, 2, 2026-10-01 15:31:57, 26, active, 01a0fbbd-d62e-72fa-800c-6221a2233d81, 2026-10-02 15:31:57, 2026-10-02 15:31:57) returning "id")
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:440
+    436▕             );
+    437▕ 
+    438▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    439▕ 
+  ➜ 440▕             $statement->execute();
+    441▕ 
+    442▕             return $statement->fetchAll(...$fetchUsing);
+    443▕         });
+    444▕     }
+
+      [2m+14 vendor frames [22m
+  15  tests/Feature/Access/RbacTest.php:154
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it generates…   QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it supports p…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it prioritize…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it validates…   QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it keeps subm…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it preserves…   QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it rolls back…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it reverses r…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it freezes re…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it reconciles…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it limits hou…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it handles in…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it reverses b…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ LoginIdentifierTest
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Billing\BillingTest > it serializes…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\CommunityDemoSeederTest >…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\CommunityDemoSeederTest >…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\CommunityDemoSeederTest >…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\CommunityDemoSeederTest >…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it logs in…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it shares…   QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it require…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it provisi…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it rejects…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it expires…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it recover…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it grants…   QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it support…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it protect…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it revokes…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it generat…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it does no…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it require…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it enforce…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PhaseOneTest > it paginat…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it creat…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it encry…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it links…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it requi…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it limit…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it impor…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it expor…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it rejec…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it proce…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it reche…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it combi…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it retai…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Community\PopulationTest > it enfor…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Identity\BootstrapAdminCommandTest > it creates a v…   
+  Expected status code 0 but received 1.
+Failed asserting that 1 matches expected 0.
+
+  at tests/Feature/Identity/BootstrapAdminCommandTest.php:14
+     10▕     $this->seed(RbacSeeder::class);
+     11▕ 
+     12▕     $this->artisan('identity:bootstrap-admin', ['email' => 'admin@example.com', '--name' => 'Administrator'])
+     13▕         ->expectsQuestion('Password (minimum 8 characters)', 'secure-password')
+  ➜  14▕         ->assertSuccessful();
+     15▕ 
+     16▕     $admin = User::query()->where('email', 'admin@example.com')->firstOrFail();
+     17▕     expect($admin->hasVerifiedEmail())->toBeTrue()
+     18▕         ->and($admin->hasRole('super-admin'))->toBeTrue();
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it rec…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it rev…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it req…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it res…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it pre…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it exp…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it iso…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it ser…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it den…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it rej…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it ser…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\SettlementBenefitTest > it req…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it issues one tarif…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it replays writes a…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it restricts vendor…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it limits residents…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it honors activatio…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it does not leave a…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it blocks new billi…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it hides inactive v…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Wifi\WifiTest > it serializes simul…  QueryException   
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "users_id_seq" does not exist
+LINE 1: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM ...
+                      ^ (Connection: rukun, Host: postgres, Port: 5432, Database: rukun_test, SQL: SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM public.users), 1), true))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:601
+    597▕             $this->bindValues($statement, $this->prepareBindings($bindings));
+    598▕ 
+    599▕             $this->recordsHaveBeenModified();
+    600▕ 
+  ➜ 601▕             return $statement->execute();
+    602▕         });
+    603▕     }
+    604▕ 
+    605▕     /**
+
+      [2m+4 vendor frames [22m
+  5   database/migrations/2026_10_02_000001_normalize_core_users_table.php:59
+
+
+  Tests:    70 failed, 102 passed (1252 assertions)
+  Duration: 174.22s
+

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table): void {
+        Schema::connection('core')->table('users', function (Blueprint $table): void {
             $table->string('status')->default('active')->index();
             $table->timestamp('last_login_at')->nullable();
         });
@@ -16,7 +16,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table): void {
+        Schema::connection('core')->table('users', function (Blueprint $table): void {
             $table->dropColumn(['status', 'last_login_at']);
         });
     }

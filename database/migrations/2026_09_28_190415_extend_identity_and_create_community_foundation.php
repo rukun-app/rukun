@@ -9,14 +9,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table): void {
+        Schema::connection('core')->table('users', function (Blueprint $table): void {
             $table->string('email')->nullable()->change();
             $table->uuid('public_id')->nullable()->unique();
             $table->string('phone', 20)->nullable()->unique();
             $table->boolean('must_change_password')->default(false);
         });
-        $users = DB::getQueryGrammar()->wrapTable('users');
-        $roles = DB::getQueryGrammar()->wrapTable('roles');
+        $users = DB::connection('core')->getQueryGrammar()->wrapTable('users');
+        $roles = DB::connection('core')->getQueryGrammar()->wrapTable('roles');
         DB::statement("UPDATE {$users} SET public_id = gen_random_uuid()");
         DB::statement("ALTER TABLE {$users} ALTER COLUMN public_id SET NOT NULL");
         DB::statement("CREATE UNIQUE INDEX rukun_users_email_normalized ON {$users} (lower(email))");
@@ -68,10 +68,10 @@ return new class extends Migration
         foreach (['account_operations', 'account_scopes', 'role_assignments', 'areas'] as $table) {
             DB::statement('DROP TABLE '.$table);
         }
-        $users = DB::getQueryGrammar()->wrapTable('users');
+        $users = DB::connection('core')->getQueryGrammar()->wrapTable('users');
         DB::statement("ALTER TABLE {$users} DROP CONSTRAINT rukun_phone_normalized, DROP CONSTRAINT rukun_user_identifier");
         DB::statement('DROP INDEX rukun_users_email_normalized');
-        Schema::table('users', function (Blueprint $table): void {
+        Schema::connection('core')->table('users', function (Blueprint $table): void {
             $table->dropColumn(['public_id', 'phone', 'must_change_password']);
         });
         // Email stays nullable: rollback must not destroy phone-only accounts.

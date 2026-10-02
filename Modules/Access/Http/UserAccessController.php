@@ -148,7 +148,7 @@ class UserAccessController
 
         $payload = $user->toArray();
         $payload['roles'] = $roleNames;
-        $payload['permissions'] = array_values(array_unique(array_filter($permissions, fn ($permission) => is_string($permission)))) ;
+        $payload['permissions'] = array_values(array_unique(array_filter($permissions, fn ($permission) => is_string($permission))));
         sort($payload['permissions']);
 
         return $payload;

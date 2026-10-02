@@ -13,14 +13,14 @@ return new class extends Migration
         DB::statement('ALTER TABLE role_assignments ADD CONSTRAINT role_assignments_area_kind FOREIGN KEY (area_id, scope_type) REFERENCES areas(id, kind)');
         DB::statement("ALTER TABLE account_scopes ADD COLUMN area_kind varchar(2) GENERATED ALWAYS AS ('rt') STORED");
         DB::statement('ALTER TABLE account_scopes ADD CONSTRAINT account_scopes_area_kind FOREIGN KEY (area_id, area_kind) REFERENCES areas(id, kind)');
-        $users = DB::getQueryGrammar()->wrapTable('users');
+        $users = DB::connection('core')->getQueryGrammar()->wrapTable('users');
         DB::statement("UPDATE {$users} SET email = lower(btrim(email)) WHERE email IS NOT NULL");
         DB::statement("ALTER TABLE {$users} ADD CONSTRAINT rukun_email_normalized CHECK (email IS NULL OR (email <> '' AND email = lower(btrim(email))))");
     }
 
     public function down(): void
     {
-        $users = DB::getQueryGrammar()->wrapTable('users');
+        $users = DB::connection('core')->getQueryGrammar()->wrapTable('users');
         DB::statement("ALTER TABLE {$users} DROP CONSTRAINT rukun_email_normalized");
         DB::statement('ALTER TABLE account_scopes DROP CONSTRAINT account_scopes_area_kind, DROP COLUMN area_kind');
         DB::statement('ALTER TABLE role_assignments DROP CONSTRAINT role_assignments_area_kind');

@@ -7,8 +7,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $files = DB::getQueryGrammar()->wrapTable('files');
-        $users = DB::getQueryGrammar()->wrapTable('users');
+        $files = DB::connection('core')->getQueryGrammar()->wrapTable('files');
+        $users = DB::connection('core')->getQueryGrammar()->wrapTable('users');
         DB::statement("CREATE TABLE households (
             id bigserial PRIMARY KEY, public_id uuid NOT NULL UNIQUE, reference varchar(100) NOT NULL UNIQUE,
             area_id bigint NOT NULL REFERENCES areas(id), area_kind varchar(2) GENERATED ALWAYS AS ('rt') STORED,

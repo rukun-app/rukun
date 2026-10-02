@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table): void {
+        Schema::connection('core')->table('users', function (Blueprint $table): void {
             $table->string('locale', 10)->nullable()->after('status');
         });
     }
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table): void {
+        Schema::connection('core')->table('users', function (Blueprint $table): void {
             $table->dropColumn('locale');
         });
     }

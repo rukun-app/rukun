@@ -23,6 +23,6 @@ Route::prefix('api/billing')->middleware(['api', 'auth:sanctum', 'active', 'loca
         Route::post('expenses/{expense}/{action}', [BillingController::class, 'expenseAction'])->whereIn('action', ['approve', 'post']);
         Route::post('ledger', [BillingController::class, 'journal']);
         Route::post('ledger/{entry}/reverse', [BillingController::class, 'reverseJournal']);
-        Route::post('periods/close',[BillingController::class, 'close']);
+        Route::post('periods/close', [BillingController::class, 'close']);
     });
 });

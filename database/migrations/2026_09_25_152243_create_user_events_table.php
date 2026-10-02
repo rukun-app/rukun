@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_events', function (Blueprint $table) {
+        Schema::connection('core')->create('user_events', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('type', 100);
@@ -34,6 +34,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_events');
+        Schema::connection('core')->dropIfExists('user_events');
     }
 };

@@ -268,7 +268,7 @@ it('serializes simultaneous receipts so only one can consume the remaining invoi
     }
     $codes = [];
     foreach ($children as $pid) {
-        pcntl_waitpid($pid,$status);
+        pcntl_waitpid($pid, $status);
         $codes[] = pcntl_wexitstatus($status);
     }
     DB::purge('core');

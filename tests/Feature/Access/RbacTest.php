@@ -2,14 +2,14 @@
 
 use App\Models\User;
 use Database\Seeders\RbacSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Sanctum\Sanctum;
 use Modules\Community\Models\Area;
 use Modules\Community\Models\RoleAssignment;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
-uses(RefreshDatabase::class);
+uses(DatabaseMigrations::class);
 
 beforeEach(function () {
     $this->seed(RbacSeeder::class);
@@ -131,25 +131,21 @@ it('protects the last access manager from losing management access', function ()
 });
 
 it('includes community role and permission data for every user row', function () {
-    $admin = new User([
+    $admin = User::query()->create([
         'name' => 'Community Admin',
         'email' => 'community-admin-'.fake()->uuid().'@example.test',
         'password' => bcrypt('secret-secret'),
         'email_verified_at' => now(),
         'status' => 'active',
     ]);
-    $admin->setConnection('core');
-    $admin->save();
     $admin->assignRole('super-admin');
-    $target = new User([
+    $target = User::query()->create([
         'name' => 'Community User',
         'email' => 'community-user-'.fake()->uuid().'@example.test',
         'password' => bcrypt('secret-secret'),
         'email_verified_at' => now(),
         'status' => 'active',
     ]);
-    $target->setConnection('core');
-    $target->save();
     $area = Area::factory()->rt()->create();
     Permission::findOrCreate('areas.view', 'web');
     Permission::findOrCreate('residents.manage', 'web');

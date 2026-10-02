@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('files', function (Blueprint $table): void {
+        Schema::connection('core')->create('files', function (Blueprint $table): void {
             $table->id();
             $table->uuid('public_id')->unique();
             $table->foreignId('owner_id')->constrained('users')->restrictOnDelete();
@@ -32,7 +32,7 @@ return new class extends Migration
             $table->index(['owner_id', 'id']);
         });
 
-        Schema::create('attachments', function (Blueprint $table): void {
+        Schema::connection('core')->create('attachments', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('file_id')->constrained('files')->cascadeOnDelete();
             $table->morphs('attachable');
@@ -50,7 +50,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('attachments');
-        Schema::dropIfExists('files');
+        Schema::connection('core')->dropIfExists('attachments');
+        Schema::connection('core')->dropIfExists('files');
     }
 };

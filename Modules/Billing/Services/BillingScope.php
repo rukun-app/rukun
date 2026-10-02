@@ -37,7 +37,7 @@ class BillingScope
                 if (! $actor->must_change_password && in_array($permission, ['invoices.view', 'receipts.view', 'payments.manual.view'], true)) {
                     $ids = array_merge($ids, $this->scopes->memberHouseholdIds($actor));
                 }
-                $query->orWhereIn('household_id',$ids);
+                $query->orWhereIn('household_id', $ids);
             }
         });
     }

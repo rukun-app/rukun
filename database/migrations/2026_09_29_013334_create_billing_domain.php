@@ -7,8 +7,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $users = DB::getQueryGrammar()->wrapTable('users');
-        $files = DB::getQueryGrammar()->wrapTable('files');
+        $users = DB::connection('core')->getQueryGrammar()->wrapTable('users');
+        $files = DB::connection('core')->getQueryGrammar()->wrapTable('files');
         DB::statement("CREATE TABLE payment_types (id bigserial PRIMARY KEY, public_id uuid UNIQUE NOT NULL, area_id bigint NOT NULL REFERENCES areas(id), code varchar(40) NOT NULL, name varchar(100) NOT NULL, collection_policy varchar(30) NOT NULL CHECK(collection_policy IN ('must_settle_in_period','can_accumulate')), fund_classification varchar(20) NOT NULL CHECK(fund_classification IN ('operational','pass_through')), created_at timestamp NOT NULL, updated_at timestamp NOT NULL, UNIQUE(area_id,code))");
         DB::statement('CREATE TABLE tariffs (id bigserial PRIMARY KEY, public_id uuid UNIQUE NOT NULL, payment_type_id bigint NOT NULL REFERENCES payment_types(id), amount bigint NOT NULL CHECK(amount>0), starts_at date NOT NULL, ends_at date, created_at timestamp NOT NULL, updated_at timestamp NOT NULL, CHECK(ends_at IS NULL OR ends_at>starts_at))');
         DB::statement("CREATE TABLE invoices (id bigserial PRIMARY KEY, public_id uuid UNIQUE NOT NULL, area_id bigint NOT NULL REFERENCES areas(id), household_id bigint NOT NULL REFERENCES households(id), payment_type_id bigint NOT NULL REFERENCES payment_types(id), tariff_id bigint NOT NULL REFERENCES tariffs(id), period date NOT NULL CHECK(EXTRACT(DAY FROM period)=1), subject varchar(100) NOT NULL DEFAULT '', amount bigint NOT NULL CHECK(amount>0), due_date date NOT NULL, settle_by date NOT NULL, collection_policy varchar(30) NOT NULL CHECK(collection_policy IN ('must_settle_in_period','can_accumulate')), fund_classification varchar(20) NOT NULL CHECK(fund_classification IN ('operational','pass_through')), state varchar(10) NOT NULL CHECK(state IN ('draft','issued','cancelled')), created_at timestamp NOT NULL, updated_at timestamp NOT NULL, UNIQUE(household_id,payment_type_id,period,subject))");

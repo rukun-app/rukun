@@ -7,20 +7,22 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
+uses(RefreshDatabase::class);
+
 it('uses the isolated PostgreSQL test database', function () {
     expect(config('database.default'))->toBe('core')
         ->and(config('database.connections.core.database'))->toBe('rukun_test')
         ->and(config('database.connections.core.prefix'))->toBe('rcore_');
 
     expect(DB::select('SELECT 1 AS connected')[0]->connected)->toBe(1);
-})->uses(RefreshDatabase::class);
+});
 
 it('creates boilerplate tables with the core prefix', function () {
     $tables = collect(DB::select("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))->pluck('tablename');
 
     expect($tables)->toContain('rcore_users', 'rcore_roles', 'rcore_notifications', 'rcore_user_events')
         ->not->toContain('users', 'roles', 'notifications', 'user_events');
-})->uses(RefreshDatabase::class);
+});
 
 it('stores cache values in the isolated Redis database', function () {
     expect(config('database.redis.cache.database'))->toBe('13')

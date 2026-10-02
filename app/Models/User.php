@@ -25,6 +25,10 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
+    protected $connection = 'core';
+
+    protected $table = 'users';
+
     protected $attributes = ['status' => 'active'];
 
     protected string $guard_name = 'web';
