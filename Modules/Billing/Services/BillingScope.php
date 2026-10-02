@@ -19,7 +19,7 @@ class BillingScope
 
     public function household(User $actor, string $permission, Household $household): void
     {
-        $member = in_array($permission, ['invoices.view', 'receipts.view', 'payments.manual.submit', 'payments.manual.view'], true) && ! $actor->must_change_password && in_array($household->id, $this->scopes->memberHouseholdIds($actor), true);
+        $member = in_array($permission, ['invoices.view', 'receipts.view', 'payments.manual.submit', 'payments.manual.view', 'payments.gateway.create'], true) && ! $actor->must_change_password && in_array($household->id, $this->scopes->memberHouseholdIds($actor), true);
         abort_unless($member || $this->scopes->allowsHousehold($actor, $permission, $household), 403);
     }
 

@@ -21,6 +21,16 @@ class BillingServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([InvoiceDueSoonCommand::class]);
         }
+        \Illuminate\Support\Facades\Event::listen(\Modules\Payments\Events\PaymentStatusChanged::class, function ($event): void {
+            if ($event->payment->reference_type === 'billing.gateway') {
+                try {
+                    app(\Modules\Billing\Services\GatewayBilling::class)->synchronize($event->payment);
+                } catch (\Throwable $exception) {
+                    // The durable checkout remains available to the reconciliation scheduler.
+                    report($exception);
+                }
+            }
+        });
         Gate::before(function (User $user, string $ability, array $arguments): ?bool {
             $file = $arguments[0] ?? null;
             if (! $file instanceof StoredFile || ! in_array($ability, ['view', 'download', 'update', 'delete'], true)) {

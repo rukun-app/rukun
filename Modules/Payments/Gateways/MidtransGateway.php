@@ -25,6 +25,10 @@ class MidtransGateway implements PaymentGateway
             ]),
             'callbacks' => ['finish' => $this->redirectUrl('finish')],
             'credit_card' => ['secure' => true],
+            ...($payment->reference_type === 'billing.gateway' ? [
+                'enabled_payments' => ['other_qris'],
+                'expiry' => ['start_time' => $payment->created_at->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s O'), 'unit' => 'minutes', 'duration' => 15],
+            ] : []),
         ], fn (mixed $value) => $value !== []));
 
         if (! $response->successful() || ! is_string($response->json('token')) || ! is_string($response->json('redirect_url'))) {

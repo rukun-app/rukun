@@ -11,6 +11,8 @@ use Modules\Billing\Models\AccountingPeriod;
 use Modules\Billing\Models\BankAccount;
 use Modules\Billing\Models\Expense;
 use Modules\Billing\Models\Invoice;
+use Modules\Billing\Models\GatewayCheckout;
+use Modules\Payments\Models\Payment;
 use Modules\Billing\Models\LedgerEntry;
 use Modules\Billing\Models\PaymentSubmission;
 use Modules\Billing\Models\PaymentType;
@@ -134,7 +136,7 @@ class BillingService
                 $invoice->update(['state' => 'issued', 'tariff_id' => $tariff->id, 'amount' => $tariff->amount]);
                 BillingEvents::emit('invoice.created', $invoice, $invoice->household_id, [$actor->id]);
             } else {
-                abort_unless($invoice->state !== 'cancelled' && $this->report->paid($invoice) === 0, 409);
+                abort_unless($invoice->state !== 'cancelled' && $this->report->paid($invoice) === 0 && GatewayBilling::reserved($invoice) === 0, 409);
                 $invoice->update(['state' => 'cancelled']);
             }
             CommunityAudit::record('invoice.'.$action, $invoice, actorId: $actor->id);
@@ -213,6 +215,7 @@ class BillingService
             $this->open($area, $data['posted_on']);
             abort_if($data['posted_on'] < $receipt->paid_on->toDateString(), 422);
             abort_if(ReceiptReversal::query()->where('receipt_id', $receipt->id)->exists(), 409);
+            abort_if($receipt->gateway_payment_id !== null, 409, __('billing::messages.gateway_reversal'));
             WifiFinancialGuard::receipt($receipt->id);
             $reversal = ReceiptReversal::query()->create(['receipt_id' => $receipt->id, 'area_id' => $area->id, 'posted_on' => $data['posted_on'], 'reason' => $data['reason'], 'created_by' => $actor->id]);
             foreach (LedgerEntry::query()->where('receipt_id', $receipt->id)->whereNull('reverses_id')->get() as $entry) {
@@ -311,6 +314,8 @@ class BillingService
                 return ['public_id' => $existing->public_id, 'report' => $existing->report];
             }
             $this->open($area, $period);
+            $areaIds = Area::query()->where('id', $area->id)->orWhere('parent_id', $area->id)->pluck('id');
+            abort_if(GatewayCheckout::query()->whereIn('area_id', $areaIds)->whereIn('status', ['reserved', 'review'])->exists(), 409, __('billing::messages.gateway_reserved'));
             $report = $this->report->monthly($area, $data['period']);
             $closed = AccountingPeriod::query()->create(['area_id' => $area->id, 'period' => $period, 'report' => $report, 'closed_by' => $actor->id, 'closed_at' => now()]);
             CommunityAudit::record('accounting_period.closed', $closed, actorId: $actor->id);
@@ -319,12 +324,23 @@ class BillingService
         });
     }
 
-    private function receipt(User $actor, Household $household, int $amount, string $paidOn, string $channel, ?array $explicit, ?PaymentSubmission $submission = null): array
+    /** Called only by the verified gateway handler while holding the area's financial lock. */
+    public function gatewayReceipt(GatewayCheckout $checkout, Payment $payment): Receipt
+    {
+        $actor = User::query()->findOrFail($checkout->actor_id);
+        $household = Household::query()->findOrFail($checkout->household_id);
+        $invoice = Invoice::query()->findOrFail($checkout->invoice_id);
+        $result = $this->receipt($actor, $household, $checkout->amount, $payment->paid_at->toDateString(), 'gateway', [['invoice_id' => $invoice->public_id, 'amount' => $checkout->amount]], checkout: $checkout, payment: $payment);
+
+        return Receipt::query()->where('public_id', $result['public_id'])->firstOrFail();
+    }
+
+    private function receipt(User $actor, Household $household, int $amount, string $paidOn, string $channel, ?array $explicit, ?PaymentSubmission $submission = null, ?GatewayCheckout $checkout = null, ?Payment $payment = null): array
     {
         $area = Area::query()->findOrFail($household->area_id);
         $this->open($area, $paidOn);
-        $allocations = $this->allocate($household, $amount, $paidOn, $explicit);
-        $receipt = Receipt::query()->create(['number' => 'R-'.Str::upper((string) Str::ulid()), 'area_id' => $area->id, 'household_id' => $household->id, 'amount' => $amount, 'paid_on' => $paidOn, 'channel' => $channel, 'submission_id' => $submission?->id, 'created_by' => $actor->id]);
+        $allocations = $this->allocate($household, $amount, $paidOn, $explicit, $checkout?->id);
+        $receipt = Receipt::query()->create(['number' => 'R-'.Str::upper((string) Str::ulid()), 'area_id' => $area->id, 'household_id' => $household->id, 'amount' => $amount, 'paid_on' => $paidOn, 'channel' => $channel, 'submission_id' => $submission?->id, 'created_by' => $actor->id, 'gateway_payment_id' => $payment?->id, 'paid_at' => $payment?->paid_at]);
         $funds = [];
         foreach ($allocations as [$invoice,$allocated]) {
             DB::connection('rukun')->table('receipt_allocations')->insert(['receipt_id' => $receipt->id, 'invoice_id' => $invoice->id, 'amount' => $allocated]);
@@ -339,7 +355,7 @@ class BillingService
         return ['public_id' => $receipt->public_id, 'number' => $receipt->number];
     }
 
-    private function allocate(Household $household, int $amount, string $paidOn, ?array $explicit): array
+    private function allocate(Household $household, int $amount, string $paidOn, ?array $explicit, ?int $checkoutId = null): array
     {
         $period = substr($paidOn, 0, 7).'-01';
         $query = Invoice::query()->where('household_id', $household->id)->where('state', 'issued');
@@ -350,13 +366,13 @@ class BillingService
             abort_unless(count(array_unique(array_column($explicit, 'invoice_id'))) === count($explicit), 422);
             foreach ($explicit as $allocation) {
                 $invoice = (clone $query)->where('public_id', $allocation['invoice_id'])->lockForUpdate()->firstOrFail();
-                abort_if($allocation['amount'] > $invoice->amount - $this->report->paid($invoice), 409, __('billing::messages.overpay'));
+                abort_if($allocation['amount'] > $invoice->amount - $this->report->paid($invoice) - GatewayBilling::reserved($invoice, $checkoutId), 409, __('billing::messages.overpay'));
                 $result[] = [$invoice, (int) $allocation['amount']];
             }
         } else {
             $invoices = $query->where('period', '<=', $period)->orderByRaw("CASE WHEN collection_policy='must_settle_in_period' AND period=? THEN 0 ELSE 1 END", [$period])->orderBy('period')->orderBy('due_date')->orderBy('id')->lockForUpdate()->get();
             foreach ($invoices as $invoice) {
-                $value = min($remaining, $invoice->amount - $this->report->paid($invoice));
+                $value = min($remaining, $invoice->amount - $this->report->paid($invoice) - GatewayBilling::reserved($invoice, $checkoutId));
                 if ($value > 0) {
                     $result[] = [$invoice, $value];
                     $remaining -= $value;

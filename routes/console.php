@@ -32,3 +32,19 @@ Artisan::command('wifi:expire-benefits', function (): void {
     $this->info('Expired gallon benefits processed.');
 })->purpose('Expire unused gallon quota and unconfirmed deliveries');
 Schedule::command('wifi:expire-benefits')->dailyAt('00:10')->withoutOverlapping();
+
+Artisan::command('billing:reconcile-gateway', function (): void {
+    $failures = 0;
+    \Modules\Billing\Models\GatewayCheckout::query()->whereIn('status', ['reserved', 'review'])->chunkById(100, function ($checkouts) use (&$failures): void {
+        foreach ($checkouts as $checkout) {
+            try {
+                app(\Modules\Billing\Services\GatewayBilling::class)->reconcile($checkout);
+            } catch (\Throwable $exception) {
+                $failures++;
+                report($exception);
+            }
+        }
+    });
+    $this->info('Gateway reconciliation finished; unresolved provider/errors: '.$failures);
+})->purpose('Reconcile reserved gateway orders and recover receipt posting after interrupted callbacks');
+Schedule::command('billing:reconcile-gateway')->everyMinute()->withoutOverlapping();

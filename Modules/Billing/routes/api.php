@@ -2,13 +2,19 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Billing\Http\BillingController;
+use Modules\Billing\Http\GatewayController;
 
 Route::prefix('api/billing')->middleware(['api', 'auth:sanctum', 'active', 'locale'])->group(function (): void {
+    Route::get('gateway-checkouts', [GatewayController::class, 'index']);
+    Route::get('gateway-checkouts/{checkout}', [GatewayController::class, 'show']);
     Route::get('reports/monthly', [BillingController::class, 'report']);
     Route::get('payment-types/{type}/tariffs', [BillingController::class, 'tariffs']);
     Route::get('{collection}', [BillingController::class, 'index'])->whereIn('collection', ['payment-types', 'invoices', 'bank-accounts', 'submissions', 'receipts', 'expenses', 'ledger', 'periods']);
     Route::get('{collection}/{id}', [BillingController::class, 'show'])->whereIn('collection', ['invoices', 'submissions', 'receipts', 'expenses', 'ledger', 'periods'])->whereUuid('id');
     Route::middleware('throttle:admin-sensitive')->group(function (): void {
+        Route::post('invoices/{invoice}/checkout', [GatewayController::class, 'store']);
+        Route::post('gateway-checkouts/{checkout}/reconcile', [GatewayController::class, 'reconcile']);
+        Route::post('gateway-checkouts/{checkout}/settlement', [GatewayController::class, 'settlement']);
         Route::post('payment-types', [BillingController::class, 'paymentType']);
         Route::post('payment-types/{type}/tariffs', [BillingController::class, 'tariff']);
         Route::post('tariffs/{tariff}/end', [BillingController::class, 'endTariff']);

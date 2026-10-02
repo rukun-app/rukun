@@ -26,6 +26,8 @@ class PaymentController
             'metadata' => ['sometimes', 'array', 'max:20'],
         ]);
 
+        abort_if(str_starts_with($validated['reference_type'], 'billing.'), 422, 'Use the billing checkout endpoint.');
+
         try {
             $payment = $payments->create(
                 user: $request->user(),

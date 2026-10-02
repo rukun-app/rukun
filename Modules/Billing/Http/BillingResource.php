@@ -39,7 +39,7 @@ class BillingResource extends JsonResource
             $model instanceof Invoice => ['period', 'subject', 'amount', 'due_date', 'settle_by', 'collection_policy', 'fund_classification'],
             $model instanceof BankAccount => ['bank_name', 'account_number', 'account_holder'],
             $model instanceof PaymentSubmission => ['amount', 'transferred_at', 'note', 'status', 'reviewed_at', 'review_note', 'allocations'],
-            $model instanceof Receipt => ['number', 'amount', 'paid_on', 'channel'],
+            $model instanceof Receipt => ['number', 'amount', 'paid_on', 'paid_at', 'channel'],
             $model instanceof Expense => ['amount', 'description', 'fund_classification', 'channel', 'status', 'approved_at', 'posted_on'],
             $model instanceof LedgerEntry => ['posted_on', 'kind', 'amount', 'fund_classification', 'channel', 'reason', 'transfer_group'],
             $model instanceof AccountingPeriod => ['period', 'report', 'closed_at'],
@@ -47,7 +47,7 @@ class BillingResource extends JsonResource
         };
         foreach ($fields as $field) {
             $value = $model->{$field};
-            $data[$field] = $value instanceof \DateTimeInterface ? $value->format(in_array($field, ['reviewed_at', 'approved_at', 'closed_at'], true) ? DATE_ATOM : 'Y-m-d') : $value;
+            $data[$field] = $value instanceof \DateTimeInterface ? $value->format(in_array($field, ['reviewed_at', 'approved_at', 'closed_at', 'paid_at'], true) ? DATE_ATOM : 'Y-m-d') : $value;
         }
         foreach (['payment_type_id' => PaymentType::class, 'tariff_id' => Tariff::class, 'destination_account_id' => BankAccount::class, 'receipt_id' => Receipt::class, 'expense_id' => Expense::class, 'reverses_id' => LedgerEntry::class, 'submission_id' => PaymentSubmission::class] as $field => $class) {
             if ($model->{$field}) {

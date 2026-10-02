@@ -21,12 +21,21 @@ class PaymentManager
 
     public function create(User $user, string $referenceType, string $referenceId, int $amount, array $customer = [], array $metadata = []): Payment
     {
+        return $this->start($this->prepare($user, $referenceType, $referenceId, $amount, $metadata), $customer);
+    }
+
+    public function prepare(User $user, string $referenceType, string $referenceId, int $amount, array $metadata = [], ?string $connection = null): Payment
+    {
         if ($amount < 1 || $referenceType === '' || $referenceId === '') {
             throw new InvalidArgumentException('A positive amount and business reference are required.');
         }
 
         $publicId = (string) Str::uuid();
-        $payment = Payment::query()->create([
+        $model = new Payment;
+        if ($connection !== null) {
+            $model->setConnection($connection)->setTable(config('database.connections.core.prefix').'payments');
+        }
+        $payment = $model->newQuery()->create([
             'public_id' => $publicId,
             'user_id' => $user->getKey(),
             'provider' => 'midtrans',
@@ -39,24 +48,29 @@ class PaymentManager
             'metadata' => $metadata ?: null,
         ]);
 
+        return $payment;
+    }
+
+    public function start(Payment $payment, array $customer = []): Payment
+    {
+        // Claim the outbound attempt before HTTP; a timeout must never create another order.
+        if (! $payment->newQuery()->whereKey($payment->id)->where('status', PaymentStatus::Creating->value)->update(['status' => PaymentStatus::ProviderUnknown->value])) {
+            return $payment->refresh();
+        }
         try {
             $checkout = $this->gateway->createCheckout($payment, $customer);
-            $payment->update([
-                'checkout_token' => $checkout->token,
-                'checkout_url' => $checkout->redirectUrl,
-                'status' => PaymentStatus::Pending,
-            ]);
+            $payment->newQuery()->whereKey($payment->id)->update(['checkout_token' => $checkout->token, 'checkout_url' => $checkout->redirectUrl]);
+            $payment->newQuery()->whereKey($payment->id)->where('status', PaymentStatus::ProviderUnknown->value)->update(['status' => PaymentStatus::Pending->value]);
         } catch (Throwable $exception) {
-            $payment->update(['status' => PaymentStatus::ProviderUnknown]);
             throw $exception instanceof PaymentGatewayException
                 ? $exception
                 : new PaymentGatewayException('Unable to create payment checkout.', previous: $exception);
         }
 
         Audit::record('payment.created', $payment, [
-            'reference_type' => $referenceType,
-            'reference_id' => $referenceId,
-            'amount' => $amount,
+            'reference_type' => $payment->reference_type,
+            'reference_id' => $payment->reference_id,
+            'amount' => $payment->amount,
             'currency' => 'IDR',
         ]);
 
@@ -65,13 +79,28 @@ class PaymentManager
 
     public function reconcile(Payment $payment): Payment
     {
-        return $this->handleNotification($this->gateway->status($payment->provider_order_id));
+        $payload = $this->gateway->status($payment->provider_order_id);
+        if (($payload['order_id'] ?? null) !== $payment->provider_order_id) {
+            throw new InvalidArgumentException('Provider returned a different payment order.');
+        }
+
+        return $this->processNotification($payload, true);
     }
 
     public function handleNotification(array $payload): Payment
     {
+        return $this->processNotification($payload, false);
+    }
+
+    private function processNotification(array $payload, bool $verifiedStatus): Payment
+    {
         if (! $this->gateway->verifyNotification($payload)) {
             throw new InvalidArgumentException('Invalid payment notification signature.');
+        }
+
+        $candidate = Payment::query()->where('provider_order_id', $payload['order_id'])->firstOrFail();
+        if (! $verifiedStatus && $candidate->reference_type === 'billing.gateway') {
+            return $this->reconcile($candidate);
         }
 
         return DB::transaction(function () use ($payload): Payment {
@@ -104,13 +133,30 @@ class PaymentManager
                 return $payment;
             }
 
+            $paidAt = $payment->paid_at;
+            if ($status->isPaid() && ! $paidAt) {
+                if ($payment->reference_type === 'billing.gateway') {
+                    $value = $payload['settlement_time'] ?? '';
+                    try {
+                        $paidAt = \Carbon\CarbonImmutable::createFromFormat('!Y-m-d H:i:s', $value, 'Asia/Jakarta');
+                    } catch (\Throwable) {
+                        throw new InvalidArgumentException('Invalid gateway settlement time.');
+                    }
+                    if (! $paidAt || $paidAt->format('Y-m-d H:i:s') !== $value || $paidAt->isFuture()) {
+                        throw new InvalidArgumentException('Invalid gateway settlement time.');
+                    }
+                    $paidAt = $paidAt->setTimezone(config('app.timezone'));
+                } else {
+                    $paidAt = now();
+                }
+            }
             $previous = $payment->status;
             $payment->update([
                 'status' => $status,
                 'provider_transaction_id' => $payload['transaction_id'] ?? $payment->provider_transaction_id,
                 'payment_type' => $payload['payment_type'] ?? $payment->payment_type,
                 'provider_data' => $safePayload,
-                'paid_at' => $status->isPaid() ? ($payment->paid_at ?? now()) : $payment->paid_at,
+                'paid_at' => $paidAt,
             ]);
             PaymentNotification::query()->create([
                 'payment_id' => $payment->getKey(),

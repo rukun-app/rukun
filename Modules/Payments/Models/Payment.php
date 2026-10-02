@@ -27,6 +27,7 @@ class Payment extends Model
     {
         return [
             'status' => PaymentStatus::class,
+            'amount' => 'integer',
             'metadata' => 'array',
             'provider_data' => 'array',
             'paid_at' => 'immutable_datetime',

@@ -9,7 +9,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 class BillingSeeder extends Seeder
 {
-    public const PERMISSIONS = ['billing.manage', 'invoices.view', 'invoices.manage', 'receipts.view', 'receipts.create', 'receipts.reverse', 'payments.manual.submit', 'payments.manual.view', 'payments.manual.approve', 'payments.manual.reject', 'ledger.view', 'ledger.adjust', 'expenses.manage', 'expenses.approve', 'expenses.post', 'periods.close', 'reports.view'];
+    public const PERMISSIONS = ['payments.gateway.create', 'payments.gateway.reconcile', 'billing.manage', 'invoices.view', 'invoices.manage', 'receipts.view', 'receipts.create', 'receipts.reverse', 'payments.manual.submit', 'payments.manual.view', 'payments.manual.approve', 'payments.manual.reject', 'ledger.view', 'ledger.adjust', 'expenses.manage', 'expenses.approve', 'expenses.post', 'periods.close', 'reports.view'];
 
     public function run(): void
     {
