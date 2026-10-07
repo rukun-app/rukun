@@ -412,6 +412,8 @@ class BillingService
         $file = StoredFile::query()->where('public_id', $id)->where('owner_id', $actor->id)->firstOrFail();
         abort_unless(in_array($file->mime_type, ['image/jpeg', 'image/png', 'application/pdf'], true), 422);
 
+        abort_if(DB::connection('rukun')->table('civic_documents')->where('file_id', $file->id)->exists(), 409);
+
         return $file;
     }
 

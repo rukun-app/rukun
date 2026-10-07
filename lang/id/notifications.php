@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'channel_locked' => 'Preferensi kanal ini dikunci oleh sistem.',
     'read_all' => 'Semua notifikasi ditandai sudah dibaca.',
     'deleted' => 'Notifikasi berhasil dihapus.',
     'channel_required' => 'Channel notifikasi ini wajib diaktifkan.',

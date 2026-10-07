@@ -11,7 +11,7 @@
 
 ## Status Implementasi
 
-> **Status per 2 Oktober 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4 selesai untuk development lokal termasuk settlement/remittance, advance/recovery dan galon; rekonsiliasi pilot WiFi nyata belum dilakukan; F5 selesai untuk development lokal; uji pembayaran QRIS sandbox nyata dan rekonsiliasi statement masih pending; F6–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
+> **Status per 7 Oktober 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4 selesai untuk development lokal termasuk settlement/remittance, advance/recovery dan galon; rekonsiliasi pilot WiFi nyata belum dilakukan; F5 selesai untuk development lokal; uji pembayaran QRIS sandbox nyata dan rekonsiliasi statement masih pending; F6 selesai untuk development lokal; jenis surat aktual/sign-off workflow pilot pending; F7–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
 
 | Fase | Nama | Status |
 |---|---|---|
@@ -21,7 +21,7 @@
 | F3 | Billing, Manual Payments & Cashbook | Selesai lokal; buku kas pilot nyata belum direkonsiliasi |
 | F4 | WiFi Collective & Gallon Benefit | Selesai lokal; sign-off kebijakan dan rekonsiliasi pilot nyata pending |
 | F5 | Payment Gateway / QRIS | Selesai lokal; pembayaran sandbox nyata dan sign-off statement pending |
-| F6 | Announcements & Citizen Services | Belum dimulai |
+| F6 | Announcements & Citizen Services | Selesai lokal; jenis surat aktual dan sign-off workflow pilot pending |
 | F7 | Patrol & Community Activities | Belum dimulai |
 | F8 | Community Marketplace | Belum dimulai |
 | F9 | CCTV | HOLD / DEFERRED |
@@ -150,6 +150,20 @@ Keputusan tahap 1: tagihan bulanan penuh tanpa prorata; aktivasi boleh di tengah
 
 Keputusan F5: satu checkout per invoice, full outstanding, currency IDR integer. Unknown/404 provider tidak dianggap expired secara lokal. Late success setelah pelepasan, periode tutup, refund/chargeback dan anomali masuk rekonsiliasi; tidak memaksa overpayment atau reversal otomatis. Endpoint refund provider dan koreksi settlement otomatis tidak termasuk MVP. CI remote/staging tetap gate sebelum production pilot.
 
+### Checklist F6
+
+- [x] Pengumuman RT/RW scoped: draft, jadwal, publish, archive, lampiran private, dan status read/unread per akun.
+- [x] Scheduler publikasi tiap menit dengan normalisasi zona waktu dan pemeriksaan ulang kewenangan pembuat.
+- [x] Laporan warga privat: anggota rumah aktif sebagai pembuat, category/description, assignment pengurus dalam scope, komentar, lifecycle, dan timeline immutable.
+- [x] Foundation permohonan surat: submitted/reviewing/approved/rejected/cancelled; independent approval/rejection dan PDF output wajib saat approved.
+- [x] Attachment Core milik pengunggah, PDF/JPEG/PNG; izin mengikuti resource induk, terkunci dari edit/delete dan penggunaan ulang lintas layanan/keuangan.
+- [x] Durable idempotency, optimistic version, serialisasi update bersamaan, audit, notifikasi inbox serta replay event tanpa konten privat.
+- [x] Permission seeder, capability warga pada context rumah, API cursor pagination, OpenAPI, dan panduan README.
+- [x] Gate lokal: 204 Pest test / 1500 assertions, Pint (323 file), OpenAPI 145 paths / 177 operations, secret scan dan diff check lulus. Migration/seeder development diterapkan; scheduler publikasi, worker dan health HTTPS terverifikasi.
+- [ ] Jenis/template/penomoran surat aktual serta sign-off workflow pengurus menunggu kebutuhan pilot.
+
+Keputusan F6: laporan/surat hanya terlihat pembuat dan pengurus berwenang, bukan otomatis seluruh anggota rumah. Pembuat tetap dapat membaca sejarah kasus setelah pindah, tetapi pengajuan baru wajib memakai rumah aktif. Pengurus harus masih berwenang untuk mendapat penugasan/akses. Kasus terminal tidak dapat diubah; tidak ada reopen pada MVP. Surat final diunggah sebagai PDF; tidak ada penerbitan/tanda tangan otomatis. Notifikasi civic berupa inbox (email nonaktif), dengan UUID resource dan pesan generik; isi privat diambil kembali melalui API yang memeriksa scope. Gate lokal F6 lulus; berikutnya F7 Patrol & Community Activities. CI remote/staging tetap sebelum production pilot.
+
 ### Dataset demo Community dan integrasi FE (30 September 2026)
 
 - [x] Seeder eksplisit `CommunityDemoSeeder`, hanya local/testing, diterapkan pada development: 2 RW, 3 RT, 10 rumah, 40 warga, 25 akun lintas role, satu vendor demo.
@@ -181,6 +195,7 @@ Keputusan F5: satu checkout per invoice, full outstanding, currency IDR integer.
 | 2026-10-02 | Koreksi migration identity dan isolasi test | Menindaklanjuti `test-result.txt` (70 gagal / 102 lulus): hilangkan clone legacy pada rollback dan asumsi sequence `users_id_seq`; normalisasi memakai rename yang menjaga ID/sequence/FK, menolak dua tabel identity tanpa rekonsiliasi. RBAC memakai DatabaseMigrations untuk akses core/rukun; trait RefreshDatabase infrastruktur dipasang pada tingkat file. Tambah tiga regresi untuk database normal, legacy berisi data, dan konflik dua tabel. | Seluruh 175 test / 1271 assertions lulus (PHP 8.5, 226.51 detik), Pint, secret scan dan diff check lulus. Development diperiksa read-only: hanya rcore_users dan FK role assignment valid; tidak ada reset/mutasi data development. README diperbarui; F5 tetap belum dimulai. |
 
 | 2026-10-02 | F5 selesai lokal | Adapter invoice–PaymentManager–QRIS, durable reservation sebelum HTTP, server-side amount, scope/idempotency, verifikasi Get Status, waktu settlement provider, receipt/allocation/ledger exactly-once, release terminal status, scheduler recovery, dan statement gross/fee/net selesai. Fee operational terpisah dari dana pass-through. Refund/late success/anomali ditandai rekonsiliasi tanpa reversal otomatis. README/OpenAPI diperbarui. | 190 test / 1370 assertions termasuk checkout/callback dua proses, Pint, OpenAPI 131 paths / 160 operations, secret scan/diff check lulus. Migration/seeder development, scheduler, worker restart dan health sehat. Signed sandbox webhook URL tunnel aktif lulus 200; pembayaran QRIS provider nyata dan statement masih pending sebelum pilot. URL notification terbaru perlu diselaraskan di dashboard. Berikutnya F6. |
+| 2026-10-07 | F6 selesai lokal | Modul Civic: pengumuman RT/RW, read/unread, publikasi terjadwal, laporan privat, penugasan scoped, workflow surat dengan independent review/PDF output, timeline immutable, audit, notifikasi inbox dan replay event transaksional. Attachment mengikuti scope dan tidak dapat dipakai ulang lintas Civic/keuangan. Normalisasi zona waktu scheduler dan cursor timeline diperbaiki; whitelist role assignment mengenali izin Civic. README/OpenAPI/checklist diperbarui. | Seluruh 204 test / 1500 assertions lulus (292.17 detik), termasuk update kasus dua proses; Pint 323 file, OpenAPI 145 paths / 177 operations, secret scan/diff check lulus. Migration/seeder development, scheduler tiap menit, worker dan HTTPS health terverifikasi. Jenis/template/penomoran surat serta sign-off workflow pilot pending; berikutnya F7. CI remote/staging tetap sebelum production pilot. |
 
 Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate development fase aktif selesai. CI remote dan staging tetap wajib sebelum production pilot, tetapi tidak menghalangi F1 dan fase development berikutnya.
 

@@ -144,3 +144,16 @@ it('documents integer rupiah and idempotency for the billing lifecycle', functio
         expect(collect($operation['parameters'])->firstWhere('name', 'Idempotency-Key')['required'])->toBeTrue()->and($operation['responses'])->toHaveKeys(['403', '409', '422']);
     }
 });
+
+it('documents civic privacy, versioned actions and cursor collections', function () {
+    $document = $this->getJson('/docs/api/openapi.json')->assertOk()->json();
+    foreach (['announcements', 'reports', 'letter-requests'] as $resource) {
+        $operations = $document['paths']['/api/civic/'.$resource];
+        expect($operations)->toHaveKeys(['get', 'post']);
+        expect(collect($operations['post']['parameters'])->firstWhere('name', 'Idempotency-Key')['required'])->toBeTrue();
+        expect(collect($operations['get']['parameters'])->firstWhere('name', 'cursor'))->not->toBeNull();
+    }
+    expect($document['components']['schemas']['CivicActionInput']['required'])->toBe(['version', 'action']);
+    expect($document['components']['schemas']['CivicCase']['properties'])->toHaveKeys(['public_id', 'documents', 'version'])->not->toHaveKey('id');
+    expect($document['paths'])->toHaveKeys(['/api/civic/reports/{id}/timeline', '/api/civic/letter-requests/{id}/actions', '/api/civic/announcements/{id}/unread']);
+});

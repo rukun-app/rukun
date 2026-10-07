@@ -53,7 +53,7 @@ it('returns effective preferences and protects required security channels', func
     $user = User::factory()->create();
     Sanctum::actingAs($user);
 
-    $this->getJson('/api/notification-preferences')->assertOk()->assertJsonCount(3, 'data');
+    $this->getJson('/api/notification-preferences')->assertOk()->assertJsonCount(4, 'data')->assertJsonFragment(['category' => 'civic', 'database_enabled' => true, 'mail_enabled' => false, 'locked_channels' => ['mail']]);
     $this->putJson('/api/notification-preferences', ['preferences' => [[
         'category' => 'security',
         'database_enabled' => false,

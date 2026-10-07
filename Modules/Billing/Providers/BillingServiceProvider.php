@@ -3,6 +3,7 @@
 namespace Modules\Billing\Providers;
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -38,6 +39,9 @@ class BillingServiceProvider extends ServiceProvider
         Gate::before(function (User $user, string $ability, array $arguments): ?bool {
             $file = $arguments[0] ?? null;
             if (! $file instanceof StoredFile || ! in_array($ability, ['view', 'download', 'update', 'delete'], true)) {
+                return null;
+            }
+            if (DB::connection('rukun')->table('civic_documents')->where('file_id', $file->id)->exists()) {
                 return null;
             }
             $submissions = PaymentSubmission::query()->where('proof_file_id', $file->id)->get();

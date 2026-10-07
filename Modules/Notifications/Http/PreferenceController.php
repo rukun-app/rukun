@@ -26,8 +26,8 @@ class PreferenceController
         foreach ($data['preferences'] as $preference) {
             $definition = NotificationRegistry::CATEGORIES[$preference['category']];
             foreach ($definition['locked'] as $channel) {
-                if (! $preference[$channel.'_enabled']) {
-                    throw ValidationException::withMessages(["preferences.{$preference['category']}.{$channel}_enabled" => [__('notifications.channel_required')]]);
+                if ((bool) $preference[$channel.'_enabled'] !== $definition[$channel]) {
+                    throw ValidationException::withMessages(["preferences.{$preference['category']}.{$channel}_enabled" => [__('notifications.channel_locked')]]);
                 }
             }
             NotificationPreference::query()->updateOrCreate(['user_id' => $request->user()->id, 'category' => $preference['category']], ['database_enabled' => $preference['database_enabled'], 'mail_enabled' => $preference['mail_enabled']]);

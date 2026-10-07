@@ -6,7 +6,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 
 ## Implementasi Rukun
 
-Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F5 selesai untuk development lokal; F6–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
+Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F6 selesai untuk development lokal; F7–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
 
 Template `.env.example` menggunakan database `rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Database development/testing dan bucket sudah diprovisikan; health HTTPS serta uji tulis/baca object storage lulus.
 
@@ -1057,3 +1057,78 @@ Login FE menggunakan email di atas dan password dari file lokal. Pengurus dapat 
 Seeder aman dijalankan ulang: tidak menggandakan data, tidak mereset password/alamat yang telah diubah, dan tidak mengaktifkan kembali assignment yang dicabut. Password dalam file adalah password **awal**, bukan password baru setelah pengguna menggantinya. Simpan manifest tersebut: jika hilang sementara akun demo masih ada, seeder menolak mengambil alih email yang sama. Seeder tidak dipanggil oleh `DatabaseSeeder` biasa dan tidak berjalan pada production. Dataset ini belum membuat invoice, pembayaran, atau transaksi WiFi.
 
 Verifikasi demo (30 September 2026): **170 test backend / 1246 assertions**, Pint dan validasi OpenAPI lulus; **52 unit test FE**, **2 browser test scoped** (workers=1), typecheck, build, lint dan format lulus. Jumlah development dan password awal seluruh 25 akun terverifikasi; secret scan serta diff check lulus.
+
+## Pengumuman dan layanan warga (F6)
+
+Selesai untuk development lokal pada **7 Oktober 2026**: **204 test / 1500 assertions**, Pint 323 file, OpenAPI 145 paths / 177 operations, secret scan dan diff check lulus. Migration/seeder sudah diterapkan; worker, scheduler dan health HTTPS terverifikasi. Jenis surat aktual dan sign-off workflow pengurus menunggu pilot. Berikutnya F7 Patrol & Community Activities.
+
+Modul `Civic` menyediakan pengumuman RT/RW, laporan warga privat, serta fondasi permohonan surat. Semua endpoint berada di `/api/civic`, memerlukan login aktif dan penyelesaian penggantian password awal. ID pada payload adalah UUID publik. List memakai cursor pagination (`cursor`, `per_page` 1–100); filter `area_id` tidak memperluas hak akses.
+
+| Endpoint | Fungsi |
+| --- | --- |
+| `GET/POST /api/civic/announcements` | Daftar pengumuman / membuat draft atau jadwal |
+| `GET /api/civic/announcements/{id}` | Detail dan status baca pribadi |
+| `POST /api/civic/announcements/{id}/publish` | Publikasi dan notifikasi ke audience yang berhak |
+| `POST /api/civic/announcements/{id}/archive` | Arsipkan; warga tidak lagi dapat membuka pengumuman/lampirannya |
+| `POST /api/civic/announcements/{id}/read` atau `/unread` | Tandai dibaca/belum dibaca untuk akun sendiri |
+| `GET/POST /api/civic/reports` | Daftar laporan privat / kirim laporan |
+| `GET/POST /api/civic/letter-requests` | Daftar permohonan privat / ajukan surat |
+| `GET /api/civic/{reports\|letter-requests}/{id}` | Detail kasus yang berhak diakses |
+| `GET /api/civic/{reports\|letter-requests}/{id}/timeline` | Riwayat kronologis dengan cursor pagination |
+| `POST /api/civic/{reports\|letter-requests}/{id}/actions` | Penugasan, komentar, pembatalan, atau perubahan status |
+
+Semua mutasi selain `read/unread` wajib mengirim `Idempotency-Key` sepanjang 8–128 karakter (`A–Z`, `a–z`, angka, `.`, `_`, `:`, `-`). Pengulangan key dan payload yang sama mengembalikan resource tanpa mengulang efek; payload berbeda menghasilkan `409`. Izin diperiksa kembali sebelum replay. Respons replay menunjukkan keadaan resource terkini. Mutasi kasus juga memerlukan `version` dari detail terakhir; versi lama menghasilkan `409`.
+
+Contoh membuat pengumuman (`POST /api/civic/announcements`):
+
+```json
+{
+  "area_id": "<UUID RT atau RW>",
+  "title": "Kerja bakti lingkungan",
+  "body": "Warga diundang berkumpul pukul 07.00 WIB.",
+  "publish_at": "2026-10-11T07:00:00+07:00",
+  "attachments": ["<UUID file milik pembuat>"]
+}
+```
+
+Tanpa `publish_at`, status awal `draft`; dengan tanggal, status `scheduled`. Waktu dengan offset dikonversi ke zona waktu aplikasi sebelum disimpan. Jadwal yang sudah lewat diproses pada siklus scheduler berikutnya. `civic:publish-due` berjalan setiap menit dan memeriksa ulang izin pembuat; pengumuman milik pengurus yang kewenangannya telah dicabut tetap terjadwal sampai pengurus berwenang menanganinya. Publikasi manual tersedia untuk draft/jadwal. Konten dan lampiran ditetapkan saat pembuatan; koreksi dilakukan dengan mengarsipkan lalu membuat pengumuman pengganti.
+
+Pengumuman RT menjangkau anggota rumah aktif di RT tersebut dan pengurus yang berwenang. Pengumuman RW juga menjangkau anggota serta pengurus RT di bawahnya. Draft, jadwal, dan arsip hanya terlihat oleh pengelola wilayah. Filter list `read=1` / `read=0` menggunakan status baca akun sendiri.
+
+Contoh laporan atau permohonan (`POST /api/civic/reports` atau `/letter-requests`):
+
+```json
+{
+  "household_id": "<UUID rumah tempat pemohon menjadi anggota aktif>",
+  "category": "Lingkungan",
+  "description": "Lampu jalan di depan rumah tidak menyala.",
+  "attachments": []
+}
+```
+
+Hanya pembuat dan pengurus wilayah dengan `reports.manage` / `letters.manage` yang dapat membuka kasus. Anggota lain di rumah yang sama tidak otomatis mendapat akses. Pembuat tetap dapat membaca riwayat kasusnya setelah pindah/keanggotaan berakhir, tetapi tidak dapat membuat permohonan baru atas rumah lama. Penugasan hanya kepada akun aktif yang masih memiliki kewenangan modul di wilayah kasus; pencabutan kewenangan menghentikan akses petugas meskipun namanya masih tercatat sebagai penerima tugas.
+
+- Laporan: `submitted → in_progress → resolved`; pengurus dapat menolak dari `submitted` atau `in_progress`.
+- Surat: `submitted → reviewing → approved`; pengurus dapat menolak dari `submitted` atau `reviewing`. Approval/rejection harus oleh pengurus lain, bukan pemohon sendiri. Approval wajib melampirkan PDF final lewat `output_file_id`.
+- Pemohon dapat `cancel` hanya saat `submitted`. Semua status terminal (`resolved`, `approved`, `rejected`, `cancelled`) menghentikan perubahan/komentar berikutnya.
+- `comment` tersedia bagi pihak yang dapat melihat kasus; `assign` hanya pengurus. `note` wajib untuk komentar dan penolakan. `assigned_to` wajib hadir saat `assign`, bernilai UUID petugas atau `null` untuk melepas tugas.
+
+Contoh `POST /api/civic/reports/{id}/actions`:
+
+```json
+{"version": 1, "action": "assign", "assigned_to": "<UUID petugas>"}
+```
+
+Setiap aksi sukses menaikkan versi, menambah timeline immutable, dan mencatat audit dalam transaksi yang sama. Update bersamaan diserialisasi; satu versi tidak dapat dipakai untuk dua perubahan berbeda.
+
+Upload lampiran melalui Files Core terlebih dahulu. Maksimal 10 lampiran awal berupa PDF/JPEG/PNG, harus dimiliki pembuat, dan belum terikat ke resource lain. File yang terikat tidak dapat diubah/dihapus atau digunakan ulang sebagai bukti keuangan. Metadata/download detail melalui `/api/files/{id}` mengikuti izin kasus/pengumuman, termasuk bagi akun dengan izin file global. Dokumen final surat hanya berupa PDF; pembuatan template, penomoran, tanda tangan, dan jenis surat spesifik menunggu kebutuhan pilot.
+
+Kategori notifikasi `civic` memakai inbox; pengguna dapat mematikannya melalui `PUT /api/notification-preferences`, sedangkan email kategori ini dikunci nonaktif. Publikasi memberi notifikasi kepada audience; kasus baru kepada pembuat dan pengurus berwenang; aksi kasus kepada pembuat dan petugas yang ditugaskan. Notifikasi dan replay event `civic.updated` disimpan secara transaksional dengan konteks UUID, tanpa isi laporan, judul privat, atau komentar. API resource tetap memeriksa izin ketika dibuka.
+
+`CivicSeeder` mendaftarkan izin pengumuman/laporan/surat untuk super-admin, ketua dan sekretaris RW/RT. Penugasan wilayah tetap memakai `RoleAssignment`; capability pengajuan warga berasal dari keanggotaan rumah aktif. Seeder ini tidak membuat transaksi layanan dummy.
+
+```sh
+docker exec -w /var/www/p85/rukun dev-php85 php artisan migrate --force
+docker exec -w /var/www/p85/rukun dev-php85 php artisan db:seed --class='Modules\Civic\Database\Seeders\CivicSeeder' --force
+docker exec -w /var/www/p85/rukun dev-php85 php artisan civic:publish-due
+```

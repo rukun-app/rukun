@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use Modules\Payments\Contracts\PaymentGateway;
+use Modules\Payments\Exceptions\PaymentGatewayException;
 use Modules\Payments\Services\PaymentManager;
 
 class MidtransNotificationController
@@ -40,7 +41,7 @@ class MidtransNotificationController
 
         try {
             $payment = $payments->handleNotification($payload);
-        } catch (\Modules\Payments\Exceptions\PaymentGatewayException) {
+        } catch (PaymentGatewayException) {
             return ApiResponse::error(__('payments::messages.checkout_unavailable'), 503, [], 'payment.gateway_unavailable');
         } catch (ModelNotFoundException) {
             return ApiResponse::error(__('payments::messages.unknown_payment'), 404, [], 'payment.not_found');

@@ -7,6 +7,8 @@ use Illuminate\Notifications\DatabaseNotification;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\PaymentSubmission;
 use Modules\Billing\Models\Receipt;
+use Modules\Civic\Models\Announcement;
+use Modules\Civic\Models\CivicCase;
 use Modules\DataTransfer\Models\DataTransfer;
 use Modules\Payments\Models\Payment;
 use Modules\Wifi\Models\GallonBenefit;
@@ -15,6 +17,7 @@ use Modules\Wifi\Models\GallonClaim;
 class EventRegistry
 {
     public const TYPES = [
+        'civic.updated' => ['schema_version' => 1],
         'wifi.benefit.updated' => ['schema_version' => 1],
         'wifi.claim.updated' => ['schema_version' => 1],
         'invoice.created' => ['schema_version' => 1],
@@ -30,6 +33,8 @@ class EventRegistry
     ];
 
     public const RESOURCES = [
+        Announcement::class => 'announcement',
+        CivicCase::class => 'civic_case',
         GallonBenefit::class => 'gallon_benefit',
         GallonClaim::class => 'gallon_claim',
         Invoice::class => 'invoice',

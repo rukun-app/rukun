@@ -1,12 +1,18 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use Modules\Billing\Models\GatewayCheckout;
 use Modules\Billing\Services\GatewayBilling;
+use Modules\Civic\Models\Announcement;
+use Modules\Civic\Services\CivicScope;
+use Modules\Civic\Services\CivicService;
+use Modules\Community\Models\Area;
 use Modules\Wifi\Models\GallonBenefit;
 use Modules\Wifi\Services\GallonService;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -58,3 +64,27 @@ Artisan::command('billing:reconcile-gateway', function (): void {
     $this->info('Gateway reconciliation finished; unresolved provider/errors: '.$failures);
 })->purpose('Reconcile reserved gateway orders and recover receipt posting after interrupted callbacks');
 Schedule::command('billing:reconcile-gateway')->everyMinute()->withoutOverlapping();
+
+Artisan::command('civic:publish-due', function (): void {
+    $published = 0;
+    $skipped = 0;
+    foreach (Announcement::query()->where('status', 'scheduled')->where('publish_at', '<=', now())->lazyById(100) as $announcement) {
+        $author = User::query()->find($announcement->author_id);
+        if (! $author || ! app(CivicScope::class)->manages($author, Area::query()->findOrFail($announcement->area_id), 'announcements.manage')) {
+            $skipped++;
+
+            continue;
+        }
+        try {
+            app(CivicService::class)->publish($author, $announcement, 'scheduled-publish-'.$announcement->public_id);
+            $published++;
+        } catch (HttpException $exception) {
+            if (! in_array($exception->getStatusCode(), [403, 409], true)) {
+                throw $exception;
+            }
+            $skipped++;
+        }
+    }
+    $this->info("Published: {$published}; skipped (review authority/status): {$skipped}.");
+})->purpose('Publish due announcements after rechecking author authority');
+Schedule::command('civic:publish-due')->everyMinute()->withoutOverlapping();
