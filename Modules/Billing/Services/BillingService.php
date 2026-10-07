@@ -87,6 +87,7 @@ class BillingService
     public function generate(User $actor, string $key, array $data, bool $managedWifi = false): array
     {
         $area = $this->area($data['area_id']);
+        abort_if(str_starts_with($data['subject'] ?? '', 'engagement:'), 422);
         abort_unless($area->kind === 'rt', 422);
 
         return $this->command($actor, $area, 'invoices.manage', 'invoice.generate', $key, $data, function () use ($actor, $area, $data, $managedWifi): array {
@@ -412,7 +413,7 @@ class BillingService
         $file = StoredFile::query()->where('public_id', $id)->where('owner_id', $actor->id)->firstOrFail();
         abort_unless(in_array($file->mime_type, ['image/jpeg', 'image/png', 'application/pdf'], true), 422);
 
-        abort_if(DB::connection('rukun')->table('civic_documents')->where('file_id', $file->id)->exists(), 409);
+        abort_if(DB::connection('rukun')->table('civic_documents')->where('file_id', $file->id)->exists() || DB::connection('rukun')->table('engagement_documents')->where('file_id', $file->id)->exists(), 409);
 
         return $file;
     }

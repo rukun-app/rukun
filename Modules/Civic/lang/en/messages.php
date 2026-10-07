@@ -7,5 +7,5 @@ return [
     'output_required' => 'An approved letter requires a PDF output.',
     'file_used' => 'This file is already attached to another record.',
     'notice_title' => 'Community service update',
-    'notice_message' => 'An announcement or citizen service record is available. Open it to see the latest details.',
+    'notice_message' => 'A community or citizen service update is available. Open it to see the latest details.',
 ];

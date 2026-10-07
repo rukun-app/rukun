@@ -41,7 +41,7 @@ class BillingServiceProvider extends ServiceProvider
             if (! $file instanceof StoredFile || ! in_array($ability, ['view', 'download', 'update', 'delete'], true)) {
                 return null;
             }
-            if (DB::connection('rukun')->table('civic_documents')->where('file_id', $file->id)->exists()) {
+            if (DB::connection('rukun')->table('civic_documents')->where('file_id', $file->id)->exists() || DB::connection('rukun')->table('engagement_documents')->where('file_id', $file->id)->exists()) {
                 return null;
             }
             $submissions = PaymentSubmission::query()->where('proof_file_id', $file->id)->get();

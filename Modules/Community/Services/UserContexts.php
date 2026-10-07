@@ -33,7 +33,7 @@ class UserContexts
             $this->add($contexts, $assignment->scope_type, $subject?->public_id ?? '', $subject?->name ?? $subject?->reference ?? 'Pengelolaan lingkungan', $permissions);
         }
         foreach (Household::query()->whereIn('id', app(ScopeResolver::class)->memberHouseholdIds($user))->orderBy('id')->get() as $household) {
-            $this->add($contexts, 'household', $household->public_id, $household->reference, ['households.view', 'residents.view', 'invoices.view', 'receipts.view', 'payments.manual.submit', 'payments.manual.view', 'payments.gateway.create', 'wifi.view', 'announcements.view', 'reports.create', 'letters.create']);
+            $this->add($contexts, 'household', $household->public_id, $household->reference, ['households.view', 'residents.view', 'invoices.view', 'receipts.view', 'payments.manual.submit', 'payments.manual.view', 'payments.gateway.create', 'wifi.view', 'announcements.view', 'reports.create', 'letters.create', 'patrol.view', 'activities.view', 'activities.join']);
         }
 
         return array_values($contexts);

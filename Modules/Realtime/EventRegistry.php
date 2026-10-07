@@ -33,6 +33,9 @@ class EventRegistry
     ];
 
     public const RESOURCES = [
+        \Modules\Engagement\Models\CommunityEvent::class => 'community_event',
+        \Modules\Engagement\Models\Participant::class => 'event_participant',
+        \Modules\Engagement\Models\Incident::class => 'event_incident',
         Announcement::class => 'announcement',
         CivicCase::class => 'civic_case',
         GallonBenefit::class => 'gallon_benefit',

@@ -18,6 +18,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call([RbacSeeder::class, CommunitySeeder::class, BillingSeeder::class, WifiSeeder::class, CivicSeeder::class]);
+        $this->call([RbacSeeder::class, CommunitySeeder::class, BillingSeeder::class, WifiSeeder::class, CivicSeeder::class, \Modules\Engagement\Database\Seeders\EngagementSeeder::class]);
     }
 }
