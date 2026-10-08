@@ -11,7 +11,7 @@
 
 ## Status Implementasi
 
-> **Status per 7 Oktober 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4 selesai untuk development lokal termasuk settlement/remittance, advance/recovery dan galon; rekonsiliasi pilot WiFi nyata belum dilakukan; F5 selesai untuk development lokal; uji pembayaran QRIS sandbox nyata dan rekonsiliasi statement masih pending; F6 selesai untuk development lokal; jenis surat aktual/sign-off workflow pilot pending; F7–F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
+> **Status per 8 Oktober 2026:** F0–F3 selesai untuk development lokal; rekonsiliasi dataset/buku kas pilot nyata F2/F3 belum dilakukan; F4 selesai untuk development lokal termasuk settlement/remittance, advance/recovery dan galon; rekonsiliasi pilot WiFi nyata belum dilakukan; F5 selesai untuk development lokal; uji pembayaran QRIS sandbox nyata dan rekonsiliasi statement masih pending; F6 selesai untuk development lokal; jenis surat aktual/sign-off workflow pilot pending; F7 selesai untuk development lokal termasuk izin, Billing, private evidence dan dokumentasi; nominal biaya per RT dan rekonsiliasi pilot pending; F8 belum dimulai; F9 HOLD. Gate CI remote dan staging dipindahkan ke sebelum production pilot sesuai arahan pengguna. Status foundation Core R tidak otomatis berarti acceptance gate Rukun sudah lulus.
 
 | Fase | Nama | Status |
 |---|---|---|
@@ -22,7 +22,7 @@
 | F4 | WiFi Collective & Gallon Benefit | Selesai lokal; sign-off kebijakan dan rekonsiliasi pilot nyata pending |
 | F5 | Payment Gateway / QRIS | Selesai lokal; pembayaran sandbox nyata dan sign-off statement pending |
 | F6 | Announcements & Citizen Services | Selesai lokal; jenis surat aktual dan sign-off workflow pilot pending |
-| F7 | Patrol & Community Activities | Belum dimulai |
+| F7 | Patrol & Community Activities | Selesai lokal; nominal biaya per RT dan rekonsiliasi pilot pending |
 | F8 | Community Marketplace | Belum dimulai |
 | F9 | CCTV | HOLD / DEFERRED |
 
@@ -164,6 +164,27 @@ Keputusan F5: satu checkout per invoice, full outstanding, currency IDR integer.
 
 Keputusan F6: laporan/surat hanya terlihat pembuat dan pengurus berwenang, bukan otomatis seluruh anggota rumah. Pembuat tetap dapat membaca sejarah kasus setelah pindah, tetapi pengajuan baru wajib memakai rumah aktif. Pengurus harus masih berwenang untuk mendapat penugasan/akses. Kasus terminal tidak dapat diubah; tidak ada reopen pada MVP. Surat final diunggah sebagai PDF; tidak ada penerbitan/tanda tangan otomatis. Notifikasi civic berupa inbox (email nonaktif), dengan UUID resource dan pesan generik; isi privat diambil kembali melalui API yang memeriksa scope. Gate lokal F6 lulus; berikutnya F7 Patrol & Community Activities. CI remote/staging tetap sebelum production pilot.
 
+### Checklist F7
+
+- [x] `EngagementController` dengan 17 method (termasuk enrollment pengurus): teams, createTeam, teamMembers, updateTeamMember, policy, setPolicy, events, showEvent, createEvent, cancelEvent, participants, join, participantAction, history, incidents, createIncident.
+- [x] Routes `/api/engagement/*` terdaftar dengan middleware `auth:sanctum`, `active`, `locale`; implicit binding `Team` memakai `public_id`.
+- [x] Pembuatan regu dan manajemen anggota scoped per RT; snapshot roster pada jadwal dan proteksi bentrok waktu.
+- [x] Patrol policy (kebijakan biaya izin) dapat dibaca dan diatur pengurus.
+- [x] Event lifecycle: create, scope visibility, cancel dengan optimistic locking dan validasi invoice aktif.
+- [x] Participant: join activity (warga), enroll oleh pengurus, withdraw.
+- [x] Participant actions: attendance, leave request, approve/reject leave, charge invoice, withdraw.
+- [x] Participant history endpoint cursor pagination.
+- [x] Incident: create dan list scoped (manager semua, warga milik sendiri).
+- [x] Cross-RT isolation diuji pada team dan event.
+- [x] Gate lokal lengkap: 224 Pest test / 1653 assertions (517.83 detik), Pint 339 file, OpenAPI 157 paths / 194 operations, secret scan dan diff check lulus. Migration development terverifikasi, permission seeder diterapkan ulang, worker dan HTTPS health sehat.
+- [x] Kesepakatan pengguna: default Rp0 sampai RT mengatur tarif, invoice hanya saat izin disetujui, pembebasan wajib alasan.
+- [x] Status pelunasan berasal dari Receipt/Allocation Billing; uji sintetis mencakup cicilan, alokasi gabungan, reversal, periode tutup, dan approval dua proses.
+- [ ] Nominal per RT dan sign-off operasional menunggu keputusan pilot.
+- [ ] Rekonsiliasi kewajiban izin dengan catatan dan penerimaan pilot nyata; alur otomatis serta rekonsiliasi sintetis sudah lulus.
+- [x] OpenAPI `/api/engagement/*` dan koleksi Postman tersedia; endpoint enrollment, response schema, validasi alasan, serta saldo Billing diselaraskan.
+
+Keputusan F7: biaya izin default Rp0 dan baru menimbulkan invoice setelah persetujuan pengurus; pembebasan wajib alasan tercatat, approval diri sendiri ditolak. Tarif dan regu disnapshot saat pembuatan jadwal. Kehadiran manual hanya present/absent, sekali catat, mulai jadwal hingga 24 jam setelah selesai; excused hanya dari izin disetujui. Billing tetap satu-satunya sumber invoice/receipt/allocation/ledger dan status pelunasan, termasuk cicilan, gabungan, dan reversal. Kontribusi activity diterbitkan melalui aksi charge pengurus, bukan otomatis saat join. API, OpenAPI, dan Postman sudah diselaraskan. F8 berikutnya; CI remote/staging tetap sebelum production pilot.
+
 ### Dataset demo Community dan integrasi FE (30 September 2026)
 
 - [x] Seeder eksplisit `CommunityDemoSeeder`, hanya local/testing, diterapkan pada development: 2 RW, 3 RT, 10 rumah, 40 warga, 25 akun lintas role, satu vendor demo.
@@ -196,6 +217,8 @@ Keputusan F6: laporan/surat hanya terlihat pembuat dan pengurus berwenang, bukan
 
 | 2026-10-02 | F5 selesai lokal | Adapter invoice–PaymentManager–QRIS, durable reservation sebelum HTTP, server-side amount, scope/idempotency, verifikasi Get Status, waktu settlement provider, receipt/allocation/ledger exactly-once, release terminal status, scheduler recovery, dan statement gross/fee/net selesai. Fee operational terpisah dari dana pass-through. Refund/late success/anomali ditandai rekonsiliasi tanpa reversal otomatis. README/OpenAPI diperbarui. | 190 test / 1370 assertions termasuk checkout/callback dua proses, Pint, OpenAPI 131 paths / 160 operations, secret scan/diff check lulus. Migration/seeder development, scheduler, worker restart dan health sehat. Signed sandbox webhook URL tunnel aktif lulus 200; pembayaran QRIS provider nyata dan statement masih pending sebelum pilot. URL notification terbaru perlu diselaraskan di dashboard. Berikutnya F6. |
 | 2026-10-07 | F6 selesai lokal | Modul Civic: pengumuman RT/RW, read/unread, publikasi terjadwal, laporan privat, penugasan scoped, workflow surat dengan independent review/PDF output, timeline immutable, audit, notifikasi inbox dan replay event transaksional. Attachment mengikuti scope dan tidak dapat dipakai ulang lintas Civic/keuangan. Normalisasi zona waktu scheduler dan cursor timeline diperbaiki; whitelist role assignment mengenali izin Civic. README/OpenAPI/checklist diperbarui. | Seluruh 204 test / 1500 assertions lulus (292.17 detik), termasuk update kasus dua proses; Pint 323 file, OpenAPI 145 paths / 177 operations, secret scan/diff check lulus. Migration/seeder development, scheduler tiap menit, worker dan HTTPS health terverifikasi. Jenis/template/penomoran surat serta sign-off workflow pilot pending; berikutnya F7. CI remote/staging tetap sebelum production pilot. |
+| 2026-10-07 | F7 HTTP layer selesai lokal | Modul Engagement: `EngagementController` dengan 14 endpoint patrol & community activities di `/api/engagement/*`. Team CRUD, manajemen anggota, patrol policy, event lifecycle (create/cancel dengan optimistic locking), participant join/withdraw, participant actions (attendance, leave, approve_leave, reject_leave, charge, withdraw), participant history, dan incident reporting. Cross-RT isolation, scope visibility, dan kewajiban biaya izin melalui Billing. `Team` implicit binding memakai `public_id`. README dan checklist diperbarui. | Seluruh 212 test / 1548 assertions lulus (37.22 detik); Pint lulus. Sign-off kebijakan biaya izin dan rekonsiliasi pilot pending. OpenAPI spec `/api/engagement/*` belum dibuat. CI remote/staging tetap sebelum production pilot. |
+| 2026-10-08 | F7 selesai lokal setelah integrasi update pengguna | Pertahankan controller/routes/OpenAPI/Postman pengguna; tutup akses baca regu/policy lintas RT, perbaiki cursor anggota, wajibkan alasan izin/penolakan/waiver, cegah bypass biaya lewat attendance excused, lengkapi endpoint enrollment dan response schema. Respons peserta memuat saldo/status Receipt/Allocation Billing beserta audit pencatat/reviewer. Snapshot tarif, biaya default nol, persetujuan independen, private evidence, dan izin role divalidasi. | Seluruh 224 test / 1653 assertions lulus (517.83 detik), termasuk cicilan, alokasi gabungan, reversal, periode tutup dan approval dua proses. Pint 339 file, OpenAPI 157 paths / 194 operations, secret scan/diff check lulus. Migration development terverifikasi, seeder permission, worker restart dan health HTTPS sehat. Nominal per RT serta rekonsiliasi pilot nyata tetap pending; berikutnya F8. |
 
 Checklist `[x]` hanya untuk pekerjaan yang telah dilakukan; `[ ]` berarti belum selesai atau belum diverifikasi. Setiap tahap memperbarui tabel fase, checklist, log perubahan, hasil pengujian, dan README. Fase berikutnya tidak dimulai sebelum gate development fase aktif selesai. CI remote dan staging tetap wajib sebelum production pilot, tetapi tidak menghalangi F1 dan fase development berikutnya.
 

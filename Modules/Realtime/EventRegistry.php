@@ -10,6 +10,9 @@ use Modules\Billing\Models\Receipt;
 use Modules\Civic\Models\Announcement;
 use Modules\Civic\Models\CivicCase;
 use Modules\DataTransfer\Models\DataTransfer;
+use Modules\Engagement\Models\CommunityEvent;
+use Modules\Engagement\Models\Incident;
+use Modules\Engagement\Models\Participant;
 use Modules\Payments\Models\Payment;
 use Modules\Wifi\Models\GallonBenefit;
 use Modules\Wifi\Models\GallonClaim;
@@ -33,9 +36,9 @@ class EventRegistry
     ];
 
     public const RESOURCES = [
-        \Modules\Engagement\Models\CommunityEvent::class => 'community_event',
-        \Modules\Engagement\Models\Participant::class => 'event_participant',
-        \Modules\Engagement\Models\Incident::class => 'event_incident',
+        CommunityEvent::class => 'community_event',
+        Participant::class => 'event_participant',
+        Incident::class => 'event_incident',
         Announcement::class => 'announcement',
         CivicCase::class => 'civic_case',
         GallonBenefit::class => 'gallon_benefit',

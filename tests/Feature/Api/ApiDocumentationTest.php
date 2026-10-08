@@ -157,3 +157,15 @@ it('documents civic privacy, versioned actions and cursor collections', function
     expect($document['components']['schemas']['CivicCase']['properties'])->toHaveKeys(['public_id', 'documents', 'version'])->not->toHaveKey('id');
     expect($document['paths'])->toHaveKeys(['/api/civic/reports/{id}/timeline', '/api/civic/letter-requests/{id}/actions', '/api/civic/announcements/{id}/unread']);
 });
+
+it('documents engagement billing balances and reason requirements without an attendance waiver bypass', function () {
+    $document = $this->getJson('/docs/api/openapi.json')->assertOk()->json();
+    foreach (['teams', 'events', 'events/{id}/participants', 'events/{id}/incidents'] as $path) {
+        expect($document['paths']['/api/engagement/'.$path])->toHaveKeys(['get', 'post']);
+    }
+    $action = $document['components']['schemas']['ParticipantActionInput'];
+    expect($action['properties']['attendance']['enum'])->toBe(['present', 'absent'])
+        ->and($action['properties']['note']['description'])->toContain('waive=true')
+        ->and($document['components']['schemas']['Participant']['properties']['billing']['properties'])->toHaveKeys(['paid_amount', 'outstanding_amount', 'status']);
+    expect($document['paths'])->toHaveKeys(['/api/engagement/patrol-policy/{area}', '/api/engagement/events/{eventId}/participants/{participantId}/history']);
+});

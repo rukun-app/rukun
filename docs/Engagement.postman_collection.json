@@ -1,0 +1,1167 @@
+{
+  "info": {
+    "name": "Rukun — Engagement (F7)",
+    "_postman_id": "rukun-engagement-f7",
+    "description": "Patrol & Community Activities module.\n\nBase URL: {{base_url}}\nSemua request butuh Bearer token (set variable `token`).\nSemua mutasi (POST) wajib header `Idempotency-Key` (8-128 karakter [A-Za-z0-9._:-]).\nMutasi yang mengubah versi resource wajib sertakan field `version` dari response terakhir; mismatch -> 409.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://rukun.p85.test",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "area_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID publik RT/RW"
+    },
+    {
+      "key": "team_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID publik tim ronda"
+    },
+    {
+      "key": "event_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID publik event"
+    },
+    {
+      "key": "participant_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID publik peserta"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID publik user warga"
+    },
+    {
+      "key": "household_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID publik rumah tangga"
+    },
+    {
+      "key": "payment_type_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID publik tipe pembayaran"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Auth — Login",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"password\": \"{{password}}\",\n  \"identifier\": \"{{identifier}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Login sebagai koordinator ronda atau officer. Script test otomatis menyimpan token ke variable collection."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var j = pm.response.json();",
+              "if (j.data && j.data.token) { pm.collectionVariables.set('token', j.data.token); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Teams",
+      "item": [
+        {
+          "name": "List patrol teams",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/teams?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "teams"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": "1-100"
+                },
+                {
+                  "key": "area_id",
+                  "value": "{{area_id}}",
+                  "description": "filter by RT/RW UUID (opsional)",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "cursor pagination",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Daftar tim ronda dalam scope RT/RW user. Butuh permission patrol.manage."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data && j.data.data && j.data.data.length > 0) { pm.collectionVariables.set('team_id', j.data.data[0].public_id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create patrol team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "create-team-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "teams"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"area_id\": \"{{area_id}}\",\n  \"name\": \"Tim Ronda Malam A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Buat tim ronda baru. area_id = UUID RT/RW. Nama unik per area. Butuh patrol.manage."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data && j.data.public_id) { pm.collectionVariables.set('team_id', j.data.public_id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List team members",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/teams/{{team_id}}/members?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "teams",
+                "{{team_id}}",
+                "members"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Daftar anggota tim. team_id diisi otomatis dari Create/List teams."
+          }
+        },
+        {
+          "name": "Add team member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "add-member-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/teams/{{team_id}}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "teams",
+                "{{team_id}}",
+                "members"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"household_id\": \"{{household_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Tambah anggota ke tim. user_id dan household_id = UUID publik warga."
+          }
+        },
+        {
+          "name": "Remove team member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "remove-member-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/teams/{{team_id}}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "teams",
+                "{{team_id}}",
+                "members"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"household_id\": \"{{household_id}}\",\n  \"remove\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Hapus anggota dari tim. Tambahkan remove: true pada body."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Patrol Policy",
+      "item": [
+        {
+          "name": "Get patrol policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/patrol-policy/{{area_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "patrol-policy",
+                "{{area_id}}"
+              ]
+            },
+            "description": "Baca kebijakan ronda area. area_id = UUID publik RT/RW. Response null jika belum diset pengurus."
+          }
+        },
+        {
+          "name": "Set patrol policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "set-policy-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/patrol-policy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "patrol-policy"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"area_id\": \"{{area_id}}\",\n  \"payment_type_id\": \"{{payment_type_id}}\",\n  \"due_days\": 14\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Atur kebijakan ronda: payment_type_id (nullable) untuk biaya izin dan due_days (1-90). Butuh patrol.policy.manage."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Events",
+      "item": [
+        {
+          "name": "List events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "kind",
+                  "value": "patrol",
+                  "description": "patrol | activity",
+                  "disabled": true
+                },
+                {
+                  "key": "area_id",
+                  "value": "{{area_id}}",
+                  "description": "filter area UUID",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "scheduled",
+                  "description": "scheduled | cancelled",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "cursor pagination token",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Daftar event dalam scope user. Warga hanya lihat event RT/RW sendiri."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data && j.data.data && j.data.data.length > 0) { pm.collectionVariables.set('event_id', j.data.data[0].public_id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show event",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}"
+              ]
+            },
+            "description": "Detail event. Response berisi field `version` yang diperlukan untuk cancel."
+          }
+        },
+        {
+          "name": "Create patrol event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "create-patrol-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"patrol\",\n  \"area_id\": \"{{area_id}}\",\n  \"team_id\": \"{{team_id}}\",\n  \"title\": \"Ronda Malam Minggu\",\n  \"notes\": \"Pakai rompi dan senter\",\n  \"starts_at\": \"2026-10-10T20:00:00+07:00\",\n  \"ends_at\": \"2026-10-11T02:00:00+07:00\",\n  \"due_days\": 14,\n  \"payment_type_id\": null,\n  \"attachments\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Buat event ronda. kind=patrol wajib sertakan team_id. starts_at/ends_at ISO 8601. due_days dan payment_type_id opsional (override kebijakan area). attachments = array UUID file yang sudah diupload."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data && j.data.public_id) { pm.collectionVariables.set('event_id', j.data.public_id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create activity event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "create-activity-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"activity\",\n  \"area_id\": \"{{area_id}}\",\n  \"title\": \"Kerja Bakti Lingkungan\",\n  \"notes\": \"Bawa peralatan kebersihan masing-masing\",\n  \"starts_at\": \"2026-10-12T07:00:00+07:00\",\n  \"ends_at\": \"2026-10-12T10:00:00+07:00\",\n  \"attachments\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Buat event aktivitas warga. kind=activity tidak boleh sertakan team_id."
+          }
+        },
+        {
+          "name": "Cancel event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "cancel-event-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": 1,\n  \"reason\": \"Cuaca tidak mendukung\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Batalkan event. version harus sesuai versi terkini (dari Show event). 409 jika versi lama atau ada invoice peserta aktif. reason wajib, max 2000 karakter."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Participants",
+      "item": [
+        {
+          "name": "List participants",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "active | withdrawn",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Daftar peserta event. Filter status: active | withdrawn. Respons berisi public_id peserta untuk dipakai di actions/history."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data && j.data.data && j.data.data.length > 0) { pm.collectionVariables.set('participant_id', j.data.data[0].public_id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enroll participant (officer — patrol)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "enroll-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"household_id\": \"{{household_id}}\",\n  \"user_id\": \"{{user_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Pengurus mendaftarkan warga ke event (patrol maupun activity). household_id wajib. user_id opsional — jika diisi harus anggota aktif household tersebut. Route: POST /participants (berbeda dengan /join untuk self-register)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data && j.data.public_id) { pm.collectionVariables.set('participant_id', j.data.public_id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Join activity (warga self-register)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "join-activity-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/join",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "join"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"household_id\": \"{{household_id}}\",\n  \"user_id\": \"{{user_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Warga daftarkan diri ke event (activity atau patrol). household_id wajib. user_id opsional. Route: POST /join (self-register, berbeda dengan /participants untuk enroll by officer)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data && j.data.public_id) { pm.collectionVariables.set('participant_id', j.data.public_id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Participant Actions",
+      "item": [
+        {
+          "name": "attendance — catat kehadiran",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "attendance-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants/{{participant_id}}/actions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants",
+                "{{participant_id}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"attendance\",\n  \"version\": 1,\n  \"attendance\": \"present\",\n  \"note\": \"Hadir tepat waktu\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Catat kehadiran. attendance: present | absent | excused. note opsional max 2000. Butuh patrol.manage."
+          }
+        },
+        {
+          "name": "leave — ajukan izin tidak hadir",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "leave-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants/{{participant_id}}/actions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants",
+                "{{participant_id}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"leave\",\n  \"version\": 1,\n  \"note\": \"Ada keperluan keluarga mendadak\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Ajukan izin tidak hadir. note opsional max 2000. user_id nullable (opsional, hanya untuk action leave). leave_status -> pending."
+          }
+        },
+        {
+          "name": "approve_leave — setujui izin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "approve-leave-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants/{{participant_id}}/actions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants",
+                "{{participant_id}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve_leave\",\n  \"version\": 2,\n  \"waive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Pengurus setujui izin. waive=false -> tagih biaya sesuai kebijakan RT. waive=true -> bebaskan biaya. waive hanya valid untuk action approve_leave. Butuh patrol.manage."
+          }
+        },
+        {
+          "name": "reject_leave — tolak izin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "reject-leave-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants/{{participant_id}}/actions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants",
+                "{{participant_id}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reject_leave\",\n  \"version\": 2,\n  \"note\": \"Kuota izin bulan ini sudah penuh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Pengurus tolak izin. leave_status -> rejected. Butuh patrol.manage."
+          }
+        },
+        {
+          "name": "charge — tagih biaya izin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "charge-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants/{{participant_id}}/actions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants",
+                "{{participant_id}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"charge\",\n  \"version\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Buat invoice biaya izin via Billing. Hanya jika leave approved + waive=false + event/area punya payment_type_id. Butuh activities.fees.manage."
+          }
+        },
+        {
+          "name": "withdraw — batalkan keikutsertaan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "withdraw-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants/{{participant_id}}/actions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants",
+                "{{participant_id}}",
+                "actions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"withdraw\",\n  \"version\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Batalkan keikutsertaan peserta. Status peserta -> withdrawn."
+          }
+        },
+        {
+          "name": "history — riwayat aksi peserta",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/participants/{{participant_id}}/history?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "participants",
+                "{{participant_id}}",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Riwayat aksi peserta secara kronologis (diurutkan per version). Immutable."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Incidents",
+      "item": [
+        {
+          "name": "List incidents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/incidents?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "incidents"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Daftar insiden event. Manager lihat semua. Warga hanya lihat insiden miliknya sendiri."
+          }
+        },
+        {
+          "name": "Create incident",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "incident-001"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/engagement/events/{{event_id}}/incidents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "engagement",
+                "events",
+                "{{event_id}}",
+                "incidents"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Ditemukan kabel listrik putus di depan RT 03 nomor 12. Sudah dipasang tanda peringatan sementara.\",\n  \"attachments\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Catat insiden selama event. attachments = array UUID file yang sudah diupload via /api/files (max 10, masing-masing distinct UUID). Peserta aktif event dapat mencatat insiden."
+          }
+        }
+      ]
+    }
+  ]
+}

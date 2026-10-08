@@ -7,6 +7,7 @@ use Illuminate\Database\Seeder;
 use Modules\Billing\Database\Seeders\BillingSeeder;
 use Modules\Civic\Database\Seeders\CivicSeeder;
 use Modules\Community\Database\Seeders\CommunitySeeder;
+use Modules\Engagement\Database\Seeders\EngagementSeeder;
 use Modules\Wifi\Database\Seeders\WifiSeeder;
 
 class DatabaseSeeder extends Seeder
@@ -18,6 +19,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call([RbacSeeder::class, CommunitySeeder::class, BillingSeeder::class, WifiSeeder::class, CivicSeeder::class, \Modules\Engagement\Database\Seeders\EngagementSeeder::class]);
+        $this->call([RbacSeeder::class, CommunitySeeder::class, BillingSeeder::class, WifiSeeder::class, CivicSeeder::class, EngagementSeeder::class]);
     }
 }

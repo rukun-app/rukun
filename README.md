@@ -6,7 +6,7 @@ Aplikasi memakai PostgreSQL, Redis, Nginx, MailDev, dan MinIO bersama pada jarin
 
 ## Implementasi Rukun
 
-Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F6 selesai untuk development lokal; F7–F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
+Implementasi dilakukan satu fase setiap tahap mengikuti [plan-be.md](plan-be.md). **F0–F7 selesai untuk development lokal; F8 belum dimulai; CCTV HOLD.** Checklist dan log di plan tersebut menjadi catatan status Rukun. Tabel foundation di bawah merupakan kemampuan baseline Core R, bukan bukti seluruh gate Rukun telah lulus.
 
 Template `.env.example` menggunakan database `rukun`, Redis prefix `rukun:` dengan DB 3/4/5, bucket private `rukun`, dan hostname `rukun.p85.test`. Compose menggunakan project `rukun`, service `rukun-queue`, `rukun-scheduler`, dan `rukun-reverb`, dengan mount `/var/www/p85/rukun`. Seluruhnya tetap memakai shared network `docker-network` tanpa membuat layanan infrastruktur duplikat. Database development/testing dan bucket sudah diprovisikan; health HTTPS serta uji tulis/baca object storage lulus.
 
@@ -1132,3 +1132,62 @@ docker exec -w /var/www/p85/rukun dev-php85 php artisan migrate --force
 docker exec -w /var/www/p85/rukun dev-php85 php artisan db:seed --class='Modules\Civic\Database\Seeders\CivicSeeder' --force
 docker exec -w /var/www/p85/rukun dev-php85 php artisan civic:publish-due
 ```
+
+## Ronda dan kegiatan warga (F7)
+
+Selesai untuk development lokal pada **8 Oktober 2026**: **224 test / 1653 assertions** (517.83 detik), Pint 339 file, OpenAPI 157 paths / 194 operations, secret scan dan diff check lulus. Migration development terverifikasi sudah diterapkan; permission seeder dijalankan ulang, worker direstart, dan health HTTPS database/Redis/storage sehat. Nominal tiap RT dan rekonsiliasi pilot nyata tetap pending. Berikutnya F8 Community Marketplace.
+
+Modul `Engagement` menyediakan manajemen tim ronda, kebijakan ronda, jadwal kegiatan patrol dan aktivitas warga, partisipasi, izin tidak hadir, dan pencatatan insiden. Semua endpoint berada di `/api/engagement`, memerlukan login aktif dan penyelesaian penggantian password awal. ID pada payload adalah UUID publik.
+
+| Endpoint | Fungsi |
+| --- | --- |
+| `GET /api/engagement/teams` | Daftar tim ronda dalam scope RT/RW |
+| `POST /api/engagement/teams` | Buat tim ronda baru |
+| `GET /api/engagement/teams/{team}/members` | Daftar anggota tim |
+| `POST /api/engagement/teams/{team}/members` | Tambah atau update anggota tim |
+| `GET /api/engagement/patrol-policy/{area}` | Baca kebijakan ronda (biaya izin, dll.) |
+| `POST /api/engagement/patrol-policy` | Atur kebijakan ronda |
+| `GET /api/engagement/events` | Daftar event patrol/aktivitas dalam scope |
+| `POST /api/engagement/events` | Buat event baru |
+| `GET /api/engagement/events/{id}` | Detail event |
+| `POST /api/engagement/events/{id}/cancel` | Batalkan event (wajib `version` + `reason`) |
+| `GET /api/engagement/events/{id}/participants` | Daftar peserta event |
+| `POST /api/engagement/events/{id}/participants` | Daftarkan peserta (pengurus bisa enroll orang lain) |
+| `POST /api/engagement/events/{id}/join` | Warga mendaftarkan diri ke aktivitas |
+| `POST /api/engagement/events/{eventId}/participants/{participantId}/actions` | Aksi peserta: `attendance`, `leave`, `approve_leave`, `reject_leave`, `charge`, `withdraw` |
+| `GET /api/engagement/events/{eventId}/participants/{participantId}/history` | Riwayat aksi peserta |
+| `GET /api/engagement/events/{id}/incidents` | Daftar insiden event |
+| `POST /api/engagement/events/{id}/incidents` | Catat insiden |
+
+Semua mutasi wajib mengirim `Idempotency-Key` sepanjang 8–128 karakter. Mutasi yang mengubah versi resource juga memerlukan `version` dari detail terakhir; versi lama menghasilkan `409`. Cross-RT isolation diterapkan — warga dan pengurus hanya dapat melihat event dalam scope wilayah mereka.
+
+Cancel event hanya diizinkan jika event masih `scheduled`, `starts_at` belum lewat, dan tidak ada invoice peserta yang aktif. Izin tidak hadir (`leave`) pada patrol dapat menimbulkan kewajiban pembayaran melalui Billing sesuai kebijakan RT; alur pembebasan telah disepakati, sementara nominal tiap RT mengikuti keputusan pilot.
+
+Insiden hanya terlihat oleh manajer (semua insiden) dan peserta yang mencatatnya. Warga dari RT lain tidak dapat melihat atau bergabung ke event RT yang berbeda.
+
+
+Kebijakan izin yang disepakati: **default Rp0 sampai RT mengonfigurasi tarif; tagihan hanya dibuat setelah izin disetujui; pembebasan wajib memiliki alasan**. Pembuat izin boleh warga yang ditugaskan atau pengurus atas permintaan warga. Pengurus tidak boleh menyetujui izin untuk dirinya sendiri. `leave` dan `reject_leave` wajib `note`; `approve_leave` dengan `waive=true` juga wajib `note`. Status `excused` hanya berasal dari persetujuan izin, bukan input kehadiran manual.
+
+Contoh aksi pada `/api/engagement/events/{eventId}/participants/{participantId}/actions`:
+
+```json
+{"action":"leave","version":1,"note":"Ada keperluan keluarga"}
+```
+
+```json
+{"action":"approve_leave","version":2,"waive":true,"note":"Pembebasan karena keadaan darurat"}
+```
+
+Tarif diambil dari Payment Type Billing dengan `collection_policy=can_accumulate` dan `fund_classification=operational`, dalam wilayah yang sama dengan kebijakan/jadwal. Buat jenis pembayaran dan tarif melalui Billing, lalu hubungkan `payment_type_id` lewat `POST /api/engagement/patrol-policy`. Kirim `payment_type_id=null` untuk menjadikan jadwal baru bebas biaya. Tarif yang berlaku pada tanggal jadwal serta `due_days` disimpan sebagai snapshot saat jadwal dibuat; perubahan kebijakan tidak mengubah jadwal lama. Koordinator ronda dapat mengelola jadwal/izin, tetapi tidak mengubah kebijakan tarif atau mendapat akses umum administrasi keuangan.
+
+Saat izin berbiaya disetujui, adapter Billing membuat satu invoice per peserta. Periode invoice memakai bulan persetujuan dan jatuh tempo dihitung dari tanggal persetujuan; periode kas yang sudah ditutup menolak proses secara atomik sehingga izin tetap pending. Rumah peserta harus masih aktif dan sesuai keanggotaannya saat kewajiban diterbitkan. Pengajuan izin saja, izin ditolak, dan izin yang dibebaskan tidak menghasilkan invoice. Untuk kegiatan berbayar, `payment_type_id` ditentukan saat membuat activity; `charge` oleh pengurus menerbitkan invoice peserta melalui adapter yang sama. Pendaftaran peserta sendiri belum menerbitkan tagihan.
+
+Respons peserta menyertakan `invoice_id` dan `billing` (`amount`, `paid_amount`, `outstanding_amount`, `status`, `overdue`). Nilainya dihitung langsung dari Receipt/Allocation Billing dan memperhitungkan reversal, bukan kolom pelunasan yang bisa diubah pada Patrol. Pembayaran dapat langsung melunasi, dicicil, atau digabung dalam receipt yang mengalokasikan nominal ke beberapa invoice rumah yang sama. Pembatalan/withdraw tidak otomatis membatalkan invoice atau mengembalikan uang; selesaikan koreksi melalui Billing dahulu. Prefix subject `engagement:` dikhususkan untuk adapter ini agar sumber kewajiban tidak ditiru melalui generate invoice umum.
+
+Regu dibuat per RT; anggota harus memiliki akun aktif yang tertaut ke warga/rumah aktif pada RT tersebut. `POST teams/{team}/members` menerima `user_id`, `household_id`; untuk menghapus cukup `user_id` dan `remove=true`. Daftar anggota dan policy hanya dapat dibaca pengurus dengan scope yang sesuai. Anggota regu disalin ke peserta saat jadwal patrol dibuat. Perubahan regu tidak mengubah jadwal lama; penugasan ronda yang waktunya bertabrakan ditolak. MVP belum menyediakan rename/delete regu atau edit waktu jadwal; batalkan jadwal sebelum mulai dan buat pengganti bila perlu.
+
+Pengurus dapat mendaftarkan peserta melalui `/participants`; warga mendaftar dirinya ke activity melalui `/join`. Warga hanya melihat baris peserta/izin miliknya, termasuk bila anggota rumah lain mengikuti kegiatan yang sama. `attendance` hanya `present` atau `absent`, dicatat pengurus mulai waktu event hingga 24 jam setelah selesai. Kehadiran bersifat sekali catat; versi lama, pencatatan ulang, dan penimpaan izin yang sedang diproses ditolak. History peserta bersifat immutable, berpaginasi, dan setiap aksi diaudit.
+
+Lampiran event serta bukti insiden memakai file private Core milik pengunggah, maksimal 10 PDF/JPEG/PNG. Lampiran terkunci dari edit/delete dan penggunaan ulang. Bukti insiden hanya terlihat pelapor atau pengurus berwenang, termasuk ketika pemegang izin file global mencoba mengaksesnya. Jadwal, izin, dan insiden memakai kategori inbox `civic` dan event replay `civic.updated`, dengan resource type `community_event`, `event_participant`, atau `event_incident`. Notifikasi hanya menyimpan pesan generik serta UUID; isi izin/insiden diambil dari API yang memeriksa scope.
+
+Koleksi pengujian tersedia di [Engagement Postman collection](docs/Engagement.postman_collection.json) dan [environment template](docs/Rukun.postman_environment.json). Isi `identifier`, `password`, dan UUID dari data lokal di Postman; token/password pada template dikosongkan. Jangan commit hasil export environment yang sudah berisi credential. OpenAPI tersedia melalui `/docs/api`.
