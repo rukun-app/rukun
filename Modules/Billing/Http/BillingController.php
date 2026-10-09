@@ -55,7 +55,7 @@ class BillingController
             $query->whereBetween($collection === 'ledger' ? 'posted_on' : 'paid_on', [$date->toDateString(), $date->endOfMonth()->toDateString()]);
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($model) => (new BillingResource($model))->resolve($request)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($model) => (new BillingResource($model))->resolve($request)));
     }
 
     public function show(Request $request, string $collection, string $id): JsonResponse
@@ -83,7 +83,7 @@ class BillingController
         $this->scope->area($request->user(), 'billing.manage', Area::query()->findOrFail($type->area_id));
         $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
 
-        return ApiResponse::success(Tariff::query()->where('payment_type_id', $type->id)->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($tariff) => (new BillingResource($tariff))->resolve($request)));
+        return ApiResponse::success(Tariff::query()->where('payment_type_id', $type->id)->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($tariff) => (new BillingResource($tariff))->resolve($request)));
     }
 
     public function tariff(Request $request, PaymentType $type): JsonResponse

@@ -20,7 +20,7 @@ class VendorController
             $query->whereIn('id', $scopes->assignments($request->user(), 'vendors.view')->whereNotNull('vendor_id')->pluck('vendor_id'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20)));
     }
 
     public function store(Request $request, ScopeResolver $scopes): JsonResponse

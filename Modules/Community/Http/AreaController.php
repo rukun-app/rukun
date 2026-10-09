@@ -20,7 +20,7 @@ class AreaController
     {
         $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
 
-        return ApiResponse::success($scopes->constrain(Area::query()->with('parent'), $request->user(), 'areas.view')->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($area) => $this->data($area)));
+        return ApiResponse::success($scopes->constrain(Area::query()->with('parent'), $request->user(), 'areas.view')->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($area) => $this->data($area)));
     }
 
     public function show(Area $area): JsonResponse

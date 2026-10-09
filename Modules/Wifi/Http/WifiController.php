@@ -25,7 +25,7 @@ class WifiController
             $query->where('vendor_id', Vendor::query()->where('public_id', $request->input('vendor_id'))->value('id'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($model) => (new WifiResource($model))->resolve($request)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($model) => (new WifiResource($model))->resolve($request)));
     }
 
     public function show(Request $request, string $collection, string $id): JsonResponse

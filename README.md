@@ -74,7 +74,7 @@ Endpoint utama yang memakai kontrak ini adalah `GET /api/users`, `GET /api/users
 | Phase 2: RBAC | Selesai | Role dan permission dinamis, administrasi user, proteksi admin terakhir, locking, dan audit |
 | Phase 2: Settings | Selesai | Registry bertipe, validasi, cache Redis, public settings, dan metadata settings |
 | Observability | Selesai | Audit event dan Telescope dengan penyamaran data sensitif |
-| Pagination | Selesai | Cursor pagination sebagai standar koleksi |
+| Pagination | Selesai | Cursor default; Spatie filter/fields/sort/include dan Laravel page pagination untuk daftar resource |
 | V2.1: File Management | Selesai | Private upload/download, metadata, ownership policy, admin permissions, attachment service, audit, dan queued cleanup |
 | V2.2: Multilingual | Selesai | Locale `en`/`id`, `Accept-Language`, preferensi user, translated validation/error, stable error code, dan localized settings metadata |
 | V2.3: Notification | Selesai | Localized inbox, email channel, preferences, read/unread lifecycle, cursor pagination, queue priority, dan MailDev verification |
@@ -715,7 +715,54 @@ Response gagal:
 | `429` | Rate limited |
 | `500` | Error internal tidak terduga |
 
-Endpoint koleksi memakai cursor pagination. `per_page` default `20`, minimum `1`, maksimum `100`. Client meneruskan `next_cursor` atau `prev_cursor` sebagai query `cursor`, serta wajib memperlakukannya sebagai string opaque. Query harus memiliki urutan stabil dan primary key sebagai urutan terakhir.
+### Query endpoint daftar
+
+Daftar resource memakai **`spatie/laravel-query-builder` 7.3.5** dengan sintaks standar package. Cakupan 43 GET collection meliputi Community, Billing, WiFi/galon, Civic, Engagement (termasuk anggota regu dan history), users, roles, permissions, auth tokens, files, notifications, audit, dan data transfers/hasil import. Swagger menampilkan field/filter/include yang tersedia per endpoint melalui `x-collection-query`.
+
+| Parameter | Contoh | Perilaku |
+|---|---|---|
+| `filter[field]` | `filter[status]=active` | Filter AND antar-field; nilai dipisahkan koma menjadi alternatif OR dalam field yang sama. Maksimum 30 filter, 50 alternatif per filter. |
+| `filter[name]` | `filter[name]=Budi` | Field teks yang didaftarkan sebagai partial filter memakai pencarian tanpa membedakan kapital. `%`/`_` diperlakukan literal. Field status/kode/UUID/angka/tanggal memakai exact filter. |
+| `filter[search]` | `filter[search]=Budi` | Grup OR bawaan Spatie pada field teks terdaftar. Tersedia jika resource memiliki partial filter; tetap dibatasi scope dan filter lainnya. |
+| `sort` | `sort=name,-public_id` | Daftar field dipisahkan koma; awalan `-` untuk descending. Maksimum 5; ID internal ditambahkan sebagai tie-breaker. |
+| `include` | `include=household,area` | Relasi aman yang didaftarkan per resource, dimuat dengan Eloquent eager loading. Maksimum 5; satu level. Nested include dan suffix count/exists tidak didaftarkan. |
+| `fields[resource]` | `fields[residents]=public_id,name` | Sparse fields pada DTO respons; maksimum 50 per resource. Namespace sesuai Swagger, misalnya `residents`, `invoices`, atau `files`. |
+| `fields[relasi_plural]` | `fields[households]=public_id,reference` | Pilih field ringkasan relasi yang diminta melalui include. Nama mengikuti konvensi plural Spatie: `areas`, `households`, `users`, `vendors`, `payment_types`, atau `parents`. |
+| `per_page` | `per_page=10` | Ukuran halaman 1–100, default 20. |
+| `page` | `page=2` | Laravel pagination, halaman 1–10000; respons memuat `current_page`, `total`, dan URL navigasi. |
+| `cursor` | `cursor=...` | Cursor opaque untuk urutan default. Tidak boleh digabung dengan `page` atau custom `sort`. |
+
+Tanpa `sort`/`page`, default tetap cursor pagination. Dengan `sort`, default menjadi `page=1` agar kolom nullable dapat diurutkan. Roles, permissions, dan auth tokens mempertahankan array datar; `per_page`/`page` dapat membatasi hasil, tetapi tidak menambah envelope pagination. Tanpa pembatas, daftar datar tetap mengembalikan seluruh hasil yang diizinkan.
+
+Filter FK seperti `filter[area_id]`, `filter[household_id]`, dan `filter[user_id]` memakai **UUID publik**. Field derived seperti `paid_amount` dapat dipilih pada respons invoice tetapi tidak otomatis menjadi filter/sort SQL; periksa allowlist di Swagger. Scope RT/RW dan kepemilikan diterapkan sebelum query Spatie. Relasi hanya mengembalikan ringkasan aman; household yang tidak boleh dibaca menghasilkan null. Password/token, NIK/KK, dan path file tidak dapat dipilih melalui query ini. Filter/field/include/sort yang tidak terdaftar, nilai bertipe salah, atau format query lama menghasilkan 422 dengan envelope error aplikasi.
+
+Contoh FE:
+
+```text
+GET /api/community/residents?filter[name]=Budi&include=household,area&fields[residents]=public_id,name&fields[households]=public_id,reference&sort=name&per_page=10&page=1
+```
+
+Dengan `URLSearchParams`, gunakan `set('filter[name]', 'Budi')`, `set('include', 'household,area')`, dan `set('fields[residents]', 'public_id,name')`. Swagger menyediakan parameter bernama lengkap dengan bracket agar query dapat langsung dicoba.
+
+Migrasi dari query custom sebelumnya:
+
+| Sebelumnya | Pengganti |
+|---|---|
+| `filter[]=status` dengan operator dalam string | `filter[status]=active`; pilihan operator ditentukan konfigurasi filter server |
+| `fields[]=name` | `fields[residents]=name` untuk resource residents |
+| `join[]=household` | `include=household` |
+| `join[]=household` dengan proyeksi field | `include=household&fields[households]=public_id,reference` |
+| `sort[]=name,DESC` | `sort=-name` |
+| `limit=10` | `per_page=10` |
+| `offset` | Gunakan `page` atau ikuti cursor; arbitrary offset tidak disediakan |
+| `s` JSON dan `or[]` | Gunakan filter terdaftar, alternatif koma, atau `filter[search]`; tidak ada penerjemah grammar lama |
+| `cache=0/1` | Hapus parameter; respons selalu membaca database dan memakai `Cache-Control: private, no-store` |
+
+Kontrak baru sengaja **tidak mempertahankan parser custom**. Parameter lama `join`, `s`, `or`, `limit`, `offset`, dan `cache` ditolak meskipun nilainya kosong. Filter top-level domain yang sudah ada sebelum fitur query bersama (misalnya `area_id` atau `period`) dan respons default tetap kompatibel. Endpoint metadata/configuration, report/agregat, detail/download, serta polling realtime `/api/events` mempertahankan kontrak khususnya.
+
+Spatie menangani parsing, allowlist, filtering, sorting, sparse-field validation, dan include. `CollectionProfile` menyimpan kontrak domain; `ValidatedFilter` hanya memeriksa tipe PostgreSQL sebelum delegasi ke filter Spatie. `ResourceQueryBuilder` menunda SQL field selection karena serializer memerlukan FK, cursor key, serta atribut untuk saldo turunan. `CollectionPage` memproyeksikan DTO setelah metadata pagination dihitung. Query histori tanpa model domain diadaptasi ke Eloquent dengan tabel/koneksi/scope asli. Endpoint daftar baru wajib memakai helper koleksi, mendaftarkan profil dan Swagger, serta menerapkan scope sebelum helper dipanggil.
+
+Verifikasi 9 Oktober 2026: **237 test / 2037 assertions lulus** (486.13 detik), termasuk 13 test khusus query Spatie, scope, include, sparse fields/cursor, query histori, UUID file, dan saldo invoice. Composer validation, Pint, OpenAPI 157 paths / 194 operations, serta secret/diff check lulus.
 
 ## Swagger dan Telescope
 

@@ -40,7 +40,7 @@ class GatewayController
             $query->where('status', $request->input('status'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($checkout) => $this->resource($checkout)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($checkout) => $this->resource($checkout)));
     }
 
     public function show(Request $request, GatewayCheckout $checkout): JsonResponse

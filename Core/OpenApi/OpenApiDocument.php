@@ -36,6 +36,8 @@ class OpenApiDocument
 
         $document = json_decode($openApi->toJson(), true, flags: JSON_THROW_ON_ERROR);
 
+        CollectionQuerySpec::apply($document);
+
         foreach (['/api/files' => '201', '/api/users' => '201', '/api/payments' => '201', '/api/data-transfers/exports' => '202', '/api/data-transfers/imports' => '202'] as $path => $successStatus) {
             $operation = &$document['paths'][$path]['post'];
             $required = in_array($path, ['/api/payments', '/api/data-transfers/exports', '/api/data-transfers/imports'], true);

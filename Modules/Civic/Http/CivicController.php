@@ -32,7 +32,7 @@ class CivicController
             $query->whereIn('id', DB::connection('rukun')->table('civic_reads')->select('announcement_id')->where('user_id', $request->user()->id), 'and', ! $request->boolean('read'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($row) => $this->announcementResource($request, $row)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($row) => $this->announcementResource($request, $row)));
     }
 
     public function announcement(Request $request, string $id): JsonResponse
@@ -70,7 +70,7 @@ class CivicController
             $query->whereIn('area_id', Area::query()->select('id')->where('public_id', $request->input('area_id')));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($row) => $this->caseResource($row)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($row) => $this->caseResource($row)));
     }
 
     public function showCase(Request $request, string $id, string $kind): JsonResponse
@@ -98,7 +98,7 @@ class CivicController
     {
         $row = $this->scope->cases($request->user(), $kind)->where('public_id', $id)->firstOrFail();
         $request->validate(['per_page' => 'sometimes|integer|min:1|max:100']);
-        $page = DB::connection('rukun')->table('civic_timeline')->where('case_id', $row->id)->orderBy('version')->cursorPaginate($request->integer('per_page', 20));
+        $page = DB::connection('rukun')->table('civic_timeline')->where('case_id', $row->id)->orderBy('version')->collectionPaginate($request->integer('per_page', 20));
 
         return ApiResponse::success($page->through(fn ($item) => ['public_id' => $item->public_id, 'actor_id' => User::query()->find($item->actor_id)?->public_id, 'action' => $item->action, 'from_status' => $item->from_status, 'to_status' => $item->to_status, 'assigned_to' => User::query()->find($item->assigned_to)?->public_id, 'note' => $item->note, 'version' => $item->version, 'created_at' => CarbonImmutable::parse($item->created_at)->toISOString()]));
     }

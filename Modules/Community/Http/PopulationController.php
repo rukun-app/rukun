@@ -25,7 +25,7 @@ class PopulationController
             $query->where('area_id', Area::query()->where('public_id', $request->input('area_id'))->value('id'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($item) => (new PopulationResource($item))->resolve($request)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($item) => (new PopulationResource($item))->resolve($request)));
     }
 
     public function household(Request $request, Household $household): JsonResponse
@@ -60,7 +60,7 @@ class PopulationController
             $query->where('area_id', Area::query()->where('public_id', $request->input('area_id'))->value('id'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($item) => (new PopulationResource($item))->resolve($request)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($item) => (new PopulationResource($item))->resolve($request)));
     }
 
     public function resident(Request $request, Resident $resident): JsonResponse
@@ -98,7 +98,7 @@ class PopulationController
         $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
         $ids = $this->scopes->households(Household::query(), $request->user(), 'residents.view')->pluck('id');
 
-        return ApiResponse::success(HouseholdMembership::query()->where('resident_id', $resident->id)->whereIn('household_id', $ids)->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($membership) => ['public_id' => $membership->public_id, 'household_id' => Household::query()->findOrFail($membership->household_id)->public_id, 'relationship' => $membership->relationship, 'starts_at' => $membership->starts_at->toISOString(), 'ends_at' => $membership->ends_at?->toISOString()]));
+        return ApiResponse::success(HouseholdMembership::query()->where('resident_id', $resident->id)->whereIn('household_id', $ids)->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($membership) => ['public_id' => $membership->public_id, 'household_id' => Household::query()->findOrFail($membership->household_id)->public_id, 'relationship' => $membership->relationship, 'starts_at' => $membership->starts_at->toISOString(), 'ends_at' => $membership->ends_at?->toISOString()]));
     }
 
     public function account(Request $request, Resident $resident): JsonResponse

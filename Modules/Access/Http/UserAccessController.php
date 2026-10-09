@@ -35,7 +35,7 @@ class UserAccessController
             ->when($request->string('role')->isNotEmpty(), fn ($query) => $query->role($request->string('role')->toString()))
             ->orderBy('name')
             ->orderBy('id')
-            ->cursorPaginate($perPage)
+            ->collectionPaginate($perPage)
             ->withQueryString();
 
         $users->getCollection()->transform(function (User $user): array {

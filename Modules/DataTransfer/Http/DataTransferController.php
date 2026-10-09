@@ -39,7 +39,7 @@ class DataTransferController
             ->when($data['status'] ?? null, fn ($query, string $value) => $query->where('status', $value))
             ->when($data['type'] ?? null, fn ($query, string $value) => $query->where('type', $value))
             ->orderByDesc('id')
-            ->cursorPaginate($request->integer('per_page', 20))
+            ->collectionPaginate($request->integer('per_page', 20))
             ->withQueryString();
         $transfers->setCollection(DataTransferResource::collection($transfers->getCollection())->collection);
 

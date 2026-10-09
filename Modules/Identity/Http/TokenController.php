@@ -12,8 +12,9 @@ class TokenController
 {
     public function index(Request $request): JsonResponse
     {
-        $currentId = $request->user()->currentAccessToken()?->getKey();
-        $tokens = $request->user()->tokens()->latest()->get()->map(fn (PersonalAccessToken $token): array => [
+        $currentToken = $request->user()->currentAccessToken();
+        $currentId = $currentToken instanceof PersonalAccessToken ? $currentToken->getKey() : null;
+        $tokens = $request->user()->tokens()->latest()->collectionGet()->through(fn (PersonalAccessToken $token): array => [
             'id' => $token->id,
             'name' => $token->name,
             'last_used_at' => $token->last_used_at?->toISOString(),

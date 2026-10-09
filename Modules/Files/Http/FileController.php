@@ -38,7 +38,7 @@ class FileController
             ->when($data['from'] ?? null, fn ($query, string $from) => $query->whereDate('created_at', '>=', $from))
             ->when($data['to'] ?? null, fn ($query, string $to) => $query->whereDate('created_at', '<=', $to))
             ->orderByDesc('id')
-            ->cursorPaginate($request->integer('per_page', 20))
+            ->collectionPaginate($request->integer('per_page', 20))
             ->withQueryString();
 
         $files->setCollection(StoredFileResource::collection($files->getCollection())->collection);

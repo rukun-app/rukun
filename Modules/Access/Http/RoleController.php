@@ -15,7 +15,7 @@ class RoleController
 {
     public function index(): JsonResponse
     {
-        $roles = Role::query()->with('permissions:id,name')->orderBy('name')->get()->map(function (Role $role): array {
+        $roles = Role::query()->with('permissions:id,name')->orderBy('name')->collectionGet()->through(function (Role $role): array {
             $payload = $role->toArray();
             $payload['permissions'] = $role->permissions()->pluck('name')->sort()->values()->all();
 
@@ -83,6 +83,6 @@ class RoleController
 
     public function permissions(): JsonResponse
     {
-        return ApiResponse::success(Permission::query()->orderBy('name')->get(['id', 'name']));
+        return ApiResponse::success(Permission::query()->orderBy('name')->select(['id', 'name'])->collectionGet());
     }
 }

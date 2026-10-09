@@ -16,7 +16,7 @@ class NotificationController
             ->when(($data['status'] ?? null) === 'read', fn ($query) => $query->whereNotNull('read_at'))
             ->when(($data['status'] ?? null) === 'unread', fn ($query) => $query->whereNull('read_at'))
             ->when($data['category'] ?? null, fn ($query, string $category) => $query->where('data->category', $category))
-            ->orderByDesc('created_at')->orderByDesc('id')->cursorPaginate($request->integer('per_page', 20))->withQueryString();
+            ->orderByDesc('created_at')->orderByDesc('id')->collectionPaginate($request->integer('per_page', 20))->withQueryString();
         $notifications->setCollection($notifications->getCollection()->map(fn (DatabaseNotification $notification) => $this->format($notification)));
 
         return ApiResponse::success($notifications);

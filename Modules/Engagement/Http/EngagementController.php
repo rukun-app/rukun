@@ -36,7 +36,7 @@ class EngagementController
             $query->where('area_id', Area::query()->where('public_id', $request->input('area_id'))->value('id'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($team) => $this->teamResource($team)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($team) => $this->teamResource($team)));
     }
 
     public function createTeam(Request $request): JsonResponse
@@ -55,13 +55,12 @@ class EngagementController
         $page = DB::connection('rukun')->table('engagement_team_members')
             ->where('team_id', $team->id)
             ->orderBy('id')
-            ->cursorPaginate($request->integer('per_page', 20));
+            ->collectionPaginate($request->integer('per_page', 20));
 
-        $result = $page->toArray();
-        $result['data'] = $page->getCollection()->map(fn ($m) => [
+        $result = $page->through(fn ($m) => [
             'user_id' => User::query()->findOrFail($m->user_id)->public_id,
             'household_id' => Household::query()->findOrFail($m->household_id)->public_id,
-        ])->all();
+        ]);
 
         return ApiResponse::success($result);
     }
@@ -111,7 +110,7 @@ class EngagementController
             $query->where('status', $request->input('status'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($event) => $this->eventResource($event)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($event) => $this->eventResource($event)));
     }
 
     public function showEvent(Request $request, string $id): JsonResponse
@@ -164,7 +163,7 @@ class EngagementController
             $query->where('status', $request->input('status'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($p) => $this->participantResource($p)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($p) => $this->participantResource($p)));
     }
 
     public function join(Request $request, string $id): JsonResponse
@@ -215,7 +214,7 @@ class EngagementController
         $page = DB::connection('rukun')->table('engagement_history')
             ->where('participant_id', $participant->id)
             ->orderBy('version')
-            ->cursorPaginate($request->integer('per_page', 20));
+            ->collectionPaginate($request->integer('per_page', 20));
 
         return ApiResponse::success($page->through(fn ($item) => [
             'public_id' => $item->public_id,
@@ -235,7 +234,7 @@ class EngagementController
             $query->where('reported_by', $request->user()->id);
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($inc) => $this->incidentResource($inc)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($inc) => $this->incidentResource($inc)));
     }
 
     public function createIncident(Request $request, string $id): JsonResponse

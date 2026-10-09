@@ -39,7 +39,7 @@ class PopulationTransferController
     {
         $this->authorize($request, $transfer, $handler);
         $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
-        $results = DB::connection('rukun')->table('population_import_results')->where('transfer_id', $transfer->public_id)->orderBy('id')->cursorPaginate($request->integer('per_page', 20));
+        $results = DB::connection('rukun')->table('population_import_results')->where('transfer_id', $transfer->public_id)->orderBy('id')->collectionPaginate($request->integer('per_page', 20));
 
         return ApiResponse::success($results->through(function ($row) {
             $operation = $row->operation_id ? AccountOperation::query()->find($row->operation_id) : null;

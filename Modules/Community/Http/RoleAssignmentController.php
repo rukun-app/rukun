@@ -27,7 +27,7 @@ class RoleAssignmentController
     {
         $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
 
-        return ApiResponse::success(RoleAssignment::query()->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($assignment) => $this->data($assignment)));
+        return ApiResponse::success(RoleAssignment::query()->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($assignment) => $this->data($assignment)));
     }
 
     public function store(Request $request): JsonResponse

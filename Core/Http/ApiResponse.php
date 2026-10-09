@@ -8,7 +8,9 @@ class ApiResponse
 {
     public static function success(mixed $data, int $status = 200): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => $data], $status);
+        $response = response()->json(['success' => true, 'data' => $data], $status);
+
+        return $data instanceof CollectionPage ? $response->header('Cache-Control', 'private, no-store') : $response;
     }
 
     public static function error(string $message, int $status, array $errors = [], string $code = 'request.failed'): JsonResponse

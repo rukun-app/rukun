@@ -40,7 +40,7 @@ class BenefitController
             $query->where('benefit_id', GallonBenefit::query()->where('public_id', $request->input('benefit_id'))->value('id'));
         }
 
-        return ApiResponse::success($query->orderBy('public_id')->cursorPaginate($request->integer('per_page', 20))->through(fn ($model) => $this->serialize($model)));
+        return ApiResponse::success($query->orderBy('public_id')->collectionPaginate($request->integer('per_page', 20))->through(fn ($model) => $this->serialize($model)));
     }
 
     public function show(Request $request, string $resource, string $id): JsonResponse

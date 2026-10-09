@@ -21,7 +21,7 @@ class AuditController
             ->when($request->string('event')->isNotEmpty(), fn ($query) => $query->where('event', $request->string('event')->toString()))
             ->when($request->integer('actor_id'), fn ($query, int $actorId) => $query->where('actor_id', $actorId))
             ->orderByDesc('id')
-            ->cursorPaginate($perPage)
+            ->collectionPaginate($perPage)
             ->withQueryString();
 
         return ApiResponse::success($events);
