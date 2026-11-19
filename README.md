@@ -12,7 +12,7 @@ Template `.env.example` menggunakan database `laravel_rukun`, Redis prefix `ruku
 
 `.env` dan `.env.testing` lokal sudah dibuat dari template Rukun dengan credential infrastruktur bersama dari `../core-r`. Keduanya diabaikan Git dan memiliki permission `0600`; APP_KEY development/testing serta credential Reverb dibuat baru. Credential Midtrans tidak disalin dan integrasinya tetap nonaktif. Database `laravel_rukun` dan bucket `rukun` masih perlu diverifikasi/diprovisikan. Aturan command/testing di `AGENTS.md` masih menunjuk Core R dan sedang menunggu penyelarasan; jangan menjalankan migration atau test Rukun terhadap aplikasi/database development Core R. Redis testing tetap 13–15 dengan prefix khusus `rukun-test:`. Credential hanya disimpan dalam environment lokal yang diabaikan Git.
 
-Remote existing: `origin` adalah `git@github.com:rukun-app/rukun.git`; `upstream` adalah `git@github.com:RezaRiyaldi/core-r.git` dengan push dinonaktifkan. Pembaruan foundation dilakukan pada branch khusus melalui `git fetch upstream` dan `git merge upstream/main`, kemudian review migration/config/conflict dan jalankan seluruh quality gate sebelum merge ke branch utama.
+Remote existing: `origin` adalah `git@github.com:rukun-app/rukun.git`; `upstream` adalah `git@github.com:rukun-app/rukun.git` dengan push dinonaktifkan. Pembaruan foundation dilakukan pada branch khusus melalui `git fetch upstream` dan `git merge upstream/main`, kemudian review migration/config/conflict dan jalankan seluruh quality gate sebelum merge ke branch utama.
 
 Untuk staging, siapkan HTTPS, `APP_DEBUG=false`, `LOG_CHANNEL=json`, `TELESCOPE_ENABLED=false`, secret melalui environment, dan bucket private khusus environment. Backup harus mencakup PostgreSQL, object storage, serta penyimpanan aman encryption key secara terpisah. Tentukan jadwal/retention dan target pemulihan sebelum pilot. Restore dump dan object ke environment staging terisolasi, lalu verifikasi health, login, akses file, dan rekonsiliasi data; catat waktu serta hasilnya pada log F0. **Backup/restore staging belum diuji.**
 
@@ -85,7 +85,7 @@ Pilihan ini direkomendasikan jika proyek baru ingin tetap dapat mengambil perbai
 
 ```sh
 cd /path/ke/direktori-project
-git clone https://github.com/RezaRiyaldi/core-r.git nama-project-baru
+git clone https://github.com/rukun-app/rukun.git nama-project-baru
 cd nama-project-baru
 
 # Simpan Core R sebagai upstream dan cegah push tidak sengaja ke sana.
@@ -119,7 +119,7 @@ Gunakan pilihan ini jika proyek hanya mengambil snapshot Core R dan tidak perlu 
 
 ```sh
 cd /path/ke/direktori-project
-git clone --depth 1 https://github.com/RezaRiyaldi/core-r.git nama-project-baru
+git clone --depth 1 https://github.com/rukun-app/rukun.git nama-project-baru
 cd nama-project-baru
 
 # Aman hanya karena dijalankan pada clone baru.
